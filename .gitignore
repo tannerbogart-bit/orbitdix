@@ -20,3 +20,7 @@ venv/
 # OS / editor
 .DS_Store
 .vscode/
+
+# SQLite dev database
+*.db
+instance/
