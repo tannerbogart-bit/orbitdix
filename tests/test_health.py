@@ -1,4 +1,4 @@
-﻿from src.app import create_app
+from src.app import create_app
 
 def test_health():
     app = create_app()
