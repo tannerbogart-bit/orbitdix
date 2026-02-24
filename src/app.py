@@ -1,4 +1,4 @@
-﻿from flask import Flask, jsonify
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 
 def create_app():
