@@ -41,7 +41,13 @@ class Person(db.Model):
     last_name = db.Column(db.String(255), nullable=True)
     email = db.Column(db.String(255), nullable=True)
     linkedin_url = db.Column(db.String(500), nullable=True)
+    company = db.Column(db.String(255), nullable=True)
+    position = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        db.UniqueConstraint("tenant_id", "linkedin_url", name="uq_person_tenant_linkedin_url"),
+    )
 
     tenant = db.relationship("Tenant", back_populates="persons")
     user = db.relationship("User", back_populates="persons")
@@ -68,6 +74,7 @@ class Edge(db.Model):
     to_person_id = db.Column(db.Integer, db.ForeignKey("persons.id"), nullable=False)
     relationship_type = db.Column(db.String(100), nullable=False)
     strength = db.Column(db.Integer, nullable=True)
+    source = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     tenant = db.relationship("Tenant", back_populates="edges")

@@ -24,9 +24,11 @@ def create_app():
 
     from src.auth import bp as auth_bp
     from src.intro_path import bp as intro_path_bp
+    from src.linkedin_import import bp as linkedin_import_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(intro_path_bp)
+    app.register_blueprint(linkedin_import_bp)
 
     @app.get("/health")
     def health():
