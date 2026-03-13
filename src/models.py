@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
-from flask_sqlalchemy import SQLAlchemy
 
-db = SQLAlchemy()
+from .db import db
 
 
 class Tenant(db.Model):
