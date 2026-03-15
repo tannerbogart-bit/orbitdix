@@ -4,6 +4,7 @@ import { ToastProvider } from './components/Toast'
 // Auth flow
 import SignIn            from './pages/auth/SignIn'
 import LinkedInOAuth     from './pages/auth/LinkedInOAuth'
+import OAuthCallback     from './pages/auth/OAuthCallback'
 import AccountConfirmed  from './pages/auth/AccountConfirmed'
 import InstallExtension  from './pages/auth/InstallExtension'
 import Syncing           from './pages/auth/Syncing'
@@ -24,6 +25,7 @@ export default function App() {
         {/* Auth / onboarding */}
         <Route path="/auth/signin"            element={<SignIn />}           />
         <Route path="/auth/linkedin"          element={<LinkedInOAuth />}    />
+        <Route path="/auth/oauth-callback"   element={<OAuthCallback />}    />
         <Route path="/auth/confirmed"         element={<AccountConfirmed />} />
         <Route path="/auth/install-extension" element={<InstallExtension />} />
         <Route path="/auth/syncing"           element={<Syncing />}          />

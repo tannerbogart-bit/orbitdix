@@ -30,6 +30,10 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
+    # SECRET_KEY protects Flask session cookies (used for OAuth CSRF state)
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-session-secret-change-me")
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     # Apply production pool settings for non-SQLite databases
     if not db_url.startswith("sqlite"):
@@ -45,9 +49,11 @@ def create_app():
 
     from .auth import bp as auth_bp
     from .intro_path import bp as intro_path_bp
+    from .oauth import bp as oauth_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(intro_path_bp)
+    app.register_blueprint(oauth_bp)
 
     @app.get("/health")
     def health():
