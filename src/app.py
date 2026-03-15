@@ -6,7 +6,19 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
-from .db import db, migrate
+import sqlite3
+
+import sqlalchemy as sa
+from sqlalchemy.engine import Engine
+
+from .db import db, migrate, PROD_POOL_OPTIONS
+
+# Enable FK enforcement for every SQLite connection (must be module-level so it
+# fires before the app context exists, which is when Flask-SQLAlchemy creates engines)
+@sa.event.listens_for(Engine, "connect")
+def _set_sqlite_pragma(conn, _record):
+    if isinstance(conn, sqlite3.Connection):
+        conn.execute("PRAGMA foreign_keys = ON")
 
 
 def create_app():
@@ -14,15 +26,19 @@ def create_app():
 
     app = Flask(__name__)
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-        "DATABASE_URL", "sqlite:///orbitsix.db"
-    )
+    db_url = os.getenv("DATABASE_URL", "sqlite:///orbitsix.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
+
+    # Apply production pool settings for non-SQLite databases
+    if not db_url.startswith("sqlite"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = PROD_POOL_OPTIONS
 
     CORS(app)
     db.init_app(app)
     migrate.init_app(app, db)
+
     JWTManager(app)
 
     from .models import Person, Edge, Tenant, User  # noqa: F401

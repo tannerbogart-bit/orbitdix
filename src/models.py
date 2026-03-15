@@ -10,69 +10,85 @@ class Tenant(db.Model):
     name = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    users = db.relationship("User", back_populates="tenant", lazy=True)
-    persons = db.relationship("Person", back_populates="tenant", lazy=True)
-    edges = db.relationship("Edge", back_populates="tenant", lazy=True)
+    users   = db.relationship("User",   back_populates="tenant", lazy=True, cascade="all, delete-orphan", passive_deletes=True)
+    persons = db.relationship("Person", back_populates="tenant", lazy=True, cascade="all, delete-orphan", passive_deletes=True)
+    edges   = db.relationship("Edge",   back_populates="tenant", lazy=True, cascade="all, delete-orphan", passive_deletes=True)
 
 
 class User(db.Model):
     __tablename__ = "users"
+    __table_args__ = (
+        db.Index("ix_users_tenant_id", "tenant_id"),
+        db.Index("ix_users_email",     "email"),
+    )
 
-    id = db.Column(db.Integer, primary_key=True)
-    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
-    email = db.Column(db.String(255), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), nullable=False, default="owner")
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    id            = db.Column(db.Integer,      primary_key=True)
+    tenant_id     = db.Column(db.Integer,      db.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    email         = db.Column(db.String(255),  nullable=False, unique=True)
+    password_hash = db.Column(db.String(255),  nullable=False)
+    role          = db.Column(db.String(50),   nullable=False, default="owner")
+    created_at    = db.Column(db.DateTime,     default=lambda: datetime.now(timezone.utc))
 
-    tenant = db.relationship("Tenant", back_populates="users")
-    persons = db.relationship("Person", back_populates="user", lazy=True)
+    tenant  = db.relationship("Tenant", back_populates="users")
+    persons = db.relationship("Person", back_populates="user", lazy=True, cascade="all, delete-orphan", passive_deletes=True)
 
 
 class Person(db.Model):
     __tablename__ = "persons"
+    __table_args__ = (
+        db.Index("ix_persons_tenant_id", "tenant_id"),
+        db.Index("ix_persons_user_id",   "user_id"),
+        db.Index("ix_persons_email",     "email"),
+        # Only one self-person per user (NULL user_id rows are excluded by DB NULL semantics)
+        db.UniqueConstraint("user_id", "is_self", name="uq_person_user_is_self"),
+    )
 
-    id = db.Column(db.Integer, primary_key=True)
-    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
-    is_self = db.Column(db.Boolean, nullable=False, default=False)
-    first_name = db.Column(db.String(255), nullable=True)
-    last_name = db.Column(db.String(255), nullable=True)
-    email = db.Column(db.String(255), nullable=True)
+    id           = db.Column(db.Integer,     primary_key=True)
+    tenant_id    = db.Column(db.Integer,     db.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    user_id      = db.Column(db.Integer,     db.ForeignKey("users.id",   ondelete="SET NULL"), nullable=True)
+    is_self      = db.Column(db.Boolean,     nullable=False, default=False)
+    first_name   = db.Column(db.String(255), nullable=True)
+    last_name    = db.Column(db.String(255), nullable=True)
+    email        = db.Column(db.String(255), nullable=True)
     linkedin_url = db.Column(db.String(500), nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at   = db.Column(db.DateTime,   default=lambda: datetime.now(timezone.utc))
 
     tenant = db.relationship("Tenant", back_populates="persons")
-    user = db.relationship("User", back_populates="persons")
+    user   = db.relationship("User",   back_populates="persons")
+
+    # passive_deletes lets the DB CASCADE handle edge removal when a Person is deleted
     edges_from = db.relationship(
-        "Edge",
-        foreign_keys="Edge.from_person_id",
-        back_populates="from_person",
-        lazy=True,
+        "Edge", foreign_keys="Edge.from_person_id",
+        back_populates="from_person", lazy=True, passive_deletes=True,
     )
     edges_to = db.relationship(
-        "Edge",
-        foreign_keys="Edge.to_person_id",
-        back_populates="to_person",
-        lazy=True,
+        "Edge", foreign_keys="Edge.to_person_id",
+        back_populates="to_person", lazy=True, passive_deletes=True,
     )
 
 
 class Edge(db.Model):
     __tablename__ = "edges"
-
-    id = db.Column(db.Integer, primary_key=True)
-    tenant_id = db.Column(db.Integer, db.ForeignKey("tenants.id"), nullable=False)
-    from_person_id = db.Column(db.Integer, db.ForeignKey("persons.id"), nullable=False)
-    to_person_id = db.Column(db.Integer, db.ForeignKey("persons.id"), nullable=False)
-    relationship_type = db.Column(db.String(100), nullable=False)
-    strength = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
-    tenant = db.relationship("Tenant", back_populates="edges")
-    from_person = db.relationship(
-        "Person", foreign_keys=[from_person_id], back_populates="edges_from"
+    __table_args__ = (
+        db.Index("ix_edges_tenant_id",      "tenant_id"),
+        db.Index("ix_edges_from_person_id", "from_person_id"),
+        db.Index("ix_edges_to_person_id",   "to_person_id"),
+        # Composite index for BFS traversal (tenant-scoped adjacency lookups)
+        db.Index("ix_edges_bfs", "tenant_id", "from_person_id", "to_person_id"),
+        # No duplicate directed edges within a tenant
+        db.UniqueConstraint("tenant_id", "from_person_id", "to_person_id", name="uq_edge_tenant_pair"),
+        # No self-loops
+        db.CheckConstraint("from_person_id != to_person_id", name="ck_edge_no_self_loop"),
     )
-    to_person = db.relationship(
-        "Person", foreign_keys=[to_person_id], back_populates="edges_to"
-    )
+
+    id               = db.Column(db.Integer,    primary_key=True)
+    tenant_id        = db.Column(db.Integer,    db.ForeignKey("tenants.id",  ondelete="CASCADE"), nullable=False)
+    from_person_id   = db.Column(db.Integer,    db.ForeignKey("persons.id",  ondelete="CASCADE"), nullable=False)
+    to_person_id     = db.Column(db.Integer,    db.ForeignKey("persons.id",  ondelete="CASCADE"), nullable=False)
+    relationship_type = db.Column(db.String(100), nullable=False, default="linkedin")
+    strength         = db.Column(db.Integer,    nullable=True)
+    created_at       = db.Column(db.DateTime,   default=lambda: datetime.now(timezone.utc))
+
+    tenant      = db.relationship("Tenant", back_populates="edges")
+    from_person = db.relationship("Person", foreign_keys=[from_person_id], back_populates="edges_from")
+    to_person   = db.relationship("Person", foreign_keys=[to_person_id],   back_populates="edges_to")
