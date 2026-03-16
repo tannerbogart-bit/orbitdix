@@ -35,7 +35,11 @@ def create_app():
     if not db_url.startswith("sqlite"):
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = PROD_POOL_OPTIONS
 
-    CORS(app, origins=["http://localhost:5173"])
+    # Allow Vite dev server + Chrome extension (any extension ID)
+    CORS(app, origins=[
+        "http://localhost:5173",
+        r"chrome-extension://.*",
+    ])
     db.init_app(app)
     migrate.init_app(app, db)
     JWTManager(app)
@@ -45,10 +49,12 @@ def create_app():
     from .auth import bp as auth_bp
     from .intro_path import bp as intro_path_bp
     from .oauth import bp as oauth_bp
+    from .people import bp as people_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(intro_path_bp)
     app.register_blueprint(oauth_bp)
+    app.register_blueprint(people_bp)
 
     @app.get("/health")
     def health():

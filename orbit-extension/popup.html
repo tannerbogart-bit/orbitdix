@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orbit Six</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">O6</div>
+    <div>
+      <h1>Orbit Six</h1>
+      <small>LinkedIn Connection Importer</small>
+    </div>
+  </div>
+
+  <!-- ── Login view ───────────────────────────────────────── -->
+  <div id="view-login">
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="you@company.com" />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" />
+    </div>
+    <div id="login-error" class="error-msg" style="display:none"></div>
+    <button class="btn btn-primary" id="btn-login">Sign in to Orbit Six</button>
+  </div>
+
+  <!-- ── Import view ──────────────────────────────────────── -->
+  <div id="view-import" style="display:none">
+    <div class="user-info">Signed in as <span id="user-email"></span></div>
+
+    <div id="import-error" class="error-msg" style="display:none"></div>
+
+    <!-- idle -->
+    <div id="state-idle">
+      <button class="btn btn-primary" id="btn-import">
+        Import LinkedIn Connections
+      </button>
+    </div>
+
+    <!-- running -->
+    <div id="state-running" style="display:none">
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Importing connections…</span>
+          <span id="progress-count">0 / 0</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+      </div>
+      <div class="status-line" id="status-line">Opening LinkedIn…</div>
+    </div>
+
+    <!-- done -->
+    <div id="state-done" style="display:none">
+      <div class="success-msg">Import complete!</div>
+      <div class="done-card">
+        <div class="stat">
+          <span>Imported</span>
+          <span class="stat-val" id="done-imported">0</span>
+        </div>
+        <div class="stat">
+          <span>Already existed</span>
+          <span class="stat-val" id="done-skipped">0</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="btn-reset">Import again</button>
+    </div>
+
+    <button class="btn btn-ghost" id="btn-logout">Sign out</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

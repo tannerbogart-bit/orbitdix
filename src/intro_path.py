@@ -3,7 +3,7 @@ from collections import deque
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
-from src.models import Edge, Person, db
+from .models import Edge, Person, db
 
 bp = Blueprint("intro_path", __name__)
 
