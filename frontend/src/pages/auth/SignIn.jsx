@@ -36,7 +36,7 @@ export default function SignIn() {
   // Full-page redirect — the backend handles the OAuth flow and eventually
   // redirects the browser to /auth/oauth-callback#token=...
   function handleOAuth(provider) {
-    window.location.href = `/api/auth/${provider}/login`
+    window.location.href = `http://localhost:5000/api/auth/${provider}/login`
   }
 
   async function handleEmailSignIn(e) {
