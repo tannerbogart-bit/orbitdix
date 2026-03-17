@@ -11,7 +11,7 @@ bp = Blueprint("intro_path", __name__)
 @bp.post("/api/intro-path")
 @jwt_required()
 def intro_path():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
     to_person_id = data.get("to_person_id")
 

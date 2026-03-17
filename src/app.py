@@ -39,10 +39,20 @@ def create_app():
     CORS(app, origins=[
         "http://localhost:5173",
         r"chrome-extension://.*",
-    ])
+    ], supports_credentials=True, allow_headers=["Content-Type", "Authorization"])
     db.init_app(app)
     migrate.init_app(app, db)
-    JWTManager(app)
+    jwt = JWTManager(app)
+
+    @jwt.invalid_token_loader
+    def invalid_token_callback(reason):
+        print(f"[JWT] Invalid token: {reason}")
+        return jsonify(error=f"Invalid token: {reason}"), 422
+
+    @jwt.expired_token_loader
+    def expired_token_callback(_header, _payload):
+        print("[JWT] Token has expired")
+        return jsonify(error="Token has expired"), 401
 
     from .models import Person, Edge, Tenant, User  # noqa: F401 — registers models with SQLAlchemy
 

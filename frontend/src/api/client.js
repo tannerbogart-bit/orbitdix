@@ -1,12 +1,16 @@
 // Real API client — proxied through Vite to Flask on :5000
-// Swap out mock data calls in components with these when backend is running.
 
 const BASE = '/api'
+
+function authHeaders() {
+  const token = localStorage.getItem('access_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 async function req(method, path, body) {
   const opts = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
   }
   if (body !== undefined) opts.body = JSON.stringify(body)
   const res = await fetch(BASE + path, opts)
@@ -21,6 +25,10 @@ export const api = {
   listPeople: ()           => req('GET',    '/people'),
   createPerson: (data)     => req('POST',   '/people', data),
   deletePerson: (id)       => req('DELETE', `/people/${id}`),
+  bulkImport: (people)     => req('POST',   '/people/bulk', { people }),
+  updatePerson: (id, data) => req('PUT',    `/people/${id}`, data),
+  deletePerson: (id)       => req('DELETE', `/people/${id}`),
+  getStats: ()             => req('GET',    '/stats'),
 
   // Edges
   listEdges: ()            => req('GET',    '/edges'),

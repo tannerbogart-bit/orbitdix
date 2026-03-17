@@ -36,22 +36,28 @@ class User(db.Model):
 class Person(db.Model):
     __tablename__ = "persons"
     __table_args__ = (
-        db.Index("ix_persons_tenant_id", "tenant_id"),
-        db.Index("ix_persons_user_id",   "user_id"),
-        db.Index("ix_persons_email",     "email"),
+        db.Index("ix_persons_tenant_id",          "tenant_id"),
+        db.Index("ix_persons_user_id",             "user_id"),
+        db.Index("ix_persons_email",               "email"),
+        # Fast dedup lookups scoped to tenant
+        db.Index("ix_persons_tenant_linkedin_url", "tenant_id", "linkedin_url"),
+        db.Index("ix_persons_tenant_email",        "tenant_id", "email"),
         # Only one self-person per user (NULL user_id rows are excluded by DB NULL semantics)
         db.UniqueConstraint("user_id", "is_self", name="uq_person_user_is_self"),
     )
 
-    id           = db.Column(db.Integer,     primary_key=True)
-    tenant_id    = db.Column(db.Integer,     db.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    user_id      = db.Column(db.Integer,     db.ForeignKey("users.id",   ondelete="SET NULL"), nullable=True)
-    is_self      = db.Column(db.Boolean,     nullable=False, default=False)
-    first_name   = db.Column(db.String(255), nullable=True)
-    last_name    = db.Column(db.String(255), nullable=True)
-    email        = db.Column(db.String(255), nullable=True)
-    linkedin_url = db.Column(db.String(500), nullable=True)
-    created_at   = db.Column(db.DateTime,   default=lambda: datetime.now(timezone.utc))
+    id                = db.Column(db.Integer,     primary_key=True)
+    tenant_id         = db.Column(db.Integer,     db.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    user_id           = db.Column(db.Integer,     db.ForeignKey("users.id",   ondelete="SET NULL"), nullable=True)
+    is_self           = db.Column(db.Boolean,     nullable=False, default=False)
+    first_name        = db.Column(db.String(255), nullable=True)
+    last_name         = db.Column(db.String(255), nullable=True)
+    email             = db.Column(db.String(255), nullable=True)
+    linkedin_url      = db.Column(db.String(500), nullable=True)
+    title             = db.Column(db.String(255), nullable=True)
+    company           = db.Column(db.String(255), nullable=True)
+    profile_image_url = db.Column(db.String(1000), nullable=True)
+    created_at        = db.Column(db.DateTime,    default=lambda: datetime.now(timezone.utc))
 
     tenant = db.relationship("Tenant", back_populates="persons")
     user   = db.relationship("User",   back_populates="persons")

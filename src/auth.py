@@ -44,7 +44,7 @@ def signup():
     db.session.add(self_person)
     db.session.commit()
 
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
     return (
         jsonify(
             access_token=access_token,
@@ -69,14 +69,14 @@ def login():
     if user is None or not check_password_hash(user.password_hash, password):
         return jsonify(error="Invalid credentials"), 401
 
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
     return jsonify(access_token=access_token)
 
 
 @bp.get("/api/me")
 @jwt_required()
 def me():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = db.session.get(User, user_id)
     if user is None:
         return jsonify(error="User not found"), 404

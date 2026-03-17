@@ -1,36 +1,26 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { mockPeople, mockEdges } from '../data/mockData'
+import { mockEdges } from '../data/mockData'
 import NetworkGraph from '../components/NetworkGraph'
 import AddPersonModal from '../components/AddPersonModal'
+import CSVUploadModal from '../components/CSVUploadModal'
+import EditPersonModal from '../components/EditPersonModal'
 import { useToast } from '../components/Toast'
+import { api } from '../api/client'
 
-function PersonRow({ person, onFindPath }) {
+function PersonRow({ person, onFindPath, onEdit }) {
   return (
     <div
       className="card card-hover"
-      style={{
-        padding: '14px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '14px',
-      }}
+      style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}
     >
       <div
         style={{
-          width: '42px',
-          height: '42px',
-          borderRadius: '50%',
-          background: 'var(--accent-dim)',
-          border: '1.5px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'Syne, sans-serif',
-          fontWeight: 700,
-          fontSize: '14px',
-          color: 'var(--accent)',
-          flexShrink: 0,
+          width: '42px', height: '42px', borderRadius: '50%',
+          background: 'var(--accent-dim)', border: '1.5px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '14px',
+          color: 'var(--accent)', flexShrink: 0,
         }}
       >
         {person.avatar}
@@ -45,26 +35,21 @@ function PersonRow({ person, onFindPath }) {
         </div>
       </div>
 
-      {person.mutual > 0 && (
-        <span
-          className="badge"
-          style={{
-            background: 'var(--bg-input)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border)',
-            fontSize: '11px',
-          }}
-        >
-          {person.mutual} mutual
-        </span>
-      )}
-
       <button
         className="btn-ghost"
         style={{ fontSize: '12px', padding: '6px 12px', flexShrink: 0 }}
         onClick={() => onFindPath(person)}
       >
         Find path
+      </button>
+      <button
+        onClick={() => onEdit(person)}
+        title="Edit contact"
+        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', flexShrink: 0 }}
+      >
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+          <path d="M10.5 2.5l2 2-8 8H2.5v-2l8-8z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
     </div>
   )
@@ -76,13 +61,36 @@ export default function MyNetwork() {
   const navigate  = useNavigate()
   const toast     = useToast()
 
-  const [people, setPeople]     = useState(mockPeople)
-  const [query, setQuery]       = useState('')
-  const [tab, setTab]           = useState('List')
-  const [showAdd, setShowAdd]   = useState(false)
+  const [people, setPeople]         = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [query, setQuery]           = useState('')
+  const [tab, setTab]               = useState('List')
+  const [showAdd, setShowAdd]       = useState(false)
+  const [showCSV, setShowCSV]       = useState(false)
+  const [editPerson, setEditPerson] = useState(null)
   const [selectedNode, setSelectedNode] = useState(null)
 
-  const others = people.slice(1) // exclude self
+  useEffect(() => {
+    api.listPeople()
+      .then(data => setPeople(data.people || []))
+      .catch(() => toast?.add('Failed to load network', 'error'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  function refreshPeople() {
+    api.listPeople()
+      .then(data => setPeople(data.people || []))
+      .catch(() => {})
+  }
+
+  // Compute avatar initials client-side
+  const withAvatars = people.map(p => ({
+    ...p,
+    avatar: ((p.first_name?.[0] || '') + (p.last_name?.[0] || '')).toUpperCase() || '?',
+  }))
+
+  const self   = withAvatars.find(p => p.is_self)
+  const others = withAvatars.filter(p => !p.is_self)
 
   const filtered = useMemo(() => {
     if (!query.trim()) return others
@@ -101,8 +109,18 @@ export default function MyNetwork() {
   }
 
   function handleAddPerson(person) {
-    setPeople((prev) => [...prev, person])
+    refreshPeople()
     toast?.add(`${person.first_name} ${person.last_name} added to your network`, 'success')
+  }
+
+  function handleSavePerson(updated) {
+    setPeople(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p))
+    toast?.add('Contact updated', 'success')
+  }
+
+  function handleDeletePerson(id) {
+    setPeople(prev => prev.filter(p => p.id !== id))
+    toast?.add('Contact removed', 'success')
   }
 
   function handleNodeClick(person) {
@@ -118,19 +136,32 @@ export default function MyNetwork() {
             My Network
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
-            {others.length} people in your extended orbit
+            {loading ? 'Loading…' : `${others.length.toLocaleString()} people in your extended orbit`}
           </p>
         </div>
-        <button
-          className="btn-primary"
-          style={{ fontSize: '13px', padding: '9px 16px' }}
-          onClick={() => setShowAdd(true)}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 1v12M1 7h12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          Add person
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: '13px', padding: '9px 16px' }}
+            onClick={() => setShowCSV(true)}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 9V1M4 6l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            Import CSV
+          </button>
+          <button
+            className="btn-primary"
+            style={{ fontSize: '13px', padding: '9px 16px' }}
+            onClick={() => setShowAdd(true)}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1v12M1 7h12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Add person
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -195,13 +226,17 @@ export default function MyNetwork() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {filtered.length === 0 ? (
+            {loading ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-                {query ? `No people match "${query}"` : 'No people in your network yet.'}
+                Loading your network…
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                {query ? `No people match "${query}"` : 'No people in your network yet. Import from CSV or use the Chrome extension.'}
               </div>
             ) : (
               filtered.map((p) => (
-                <PersonRow key={p.id} person={p} onFindPath={handleFindPath} />
+                <PersonRow key={p.id} person={p} onFindPath={handleFindPath} onEdit={setEditPerson} />
               ))
             )}
           </div>
@@ -216,7 +251,7 @@ export default function MyNetwork() {
             style={{ height: '520px', padding: 0, overflow: 'hidden' }}
           >
             <NetworkGraph
-              people={people}
+              people={withAvatars}
               edges={mockEdges}
               onNodeClick={handleNodeClick}
             />
@@ -231,7 +266,7 @@ export default function MyNetwork() {
                     width: '48px',
                     height: '48px',
                     borderRadius: '50%',
-                    background: selectedNode.id === people[0].id ? 'var(--accent)' : 'var(--accent-dim)',
+                    background: selectedNode.is_self ? 'var(--accent)' : 'var(--accent-dim)',
                     border: '2px solid var(--accent)',
                     display: 'flex',
                     alignItems: 'center',
@@ -239,7 +274,7 @@ export default function MyNetwork() {
                     fontFamily: 'Syne, sans-serif',
                     fontWeight: 700,
                     fontSize: '15px',
-                    color: selectedNode.id === people[0].id ? '#fff' : 'var(--accent)',
+                    color: selectedNode.is_self ? '#fff' : 'var(--accent)',
                   }}
                 >
                   {selectedNode.avatar}
@@ -268,7 +303,7 @@ export default function MyNetwork() {
                 </div>
               )}
 
-              {selectedNode.id !== people[0].id && (
+              {!selectedNode.is_self && (
                 <button
                   className="btn-primary"
                   style={{ width: '100%', justifyContent: 'center', fontSize: '13px', padding: '9px' }}
@@ -287,6 +322,20 @@ export default function MyNetwork() {
         <AddPersonModal
           onAdd={handleAddPerson}
           onClose={() => setShowAdd(false)}
+        />
+      )}
+      {showCSV && (
+        <CSVUploadModal
+          onImport={(count) => { toast?.add(`${count.toLocaleString()} people imported successfully`, 'success'); refreshPeople() }}
+          onClose={() => setShowCSV(false)}
+        />
+      )}
+      {editPerson && (
+        <EditPersonModal
+          person={editPerson}
+          onSave={handleSavePerson}
+          onDelete={handleDeletePerson}
+          onClose={() => setEditPerson(null)}
         />
       )}
     </div>

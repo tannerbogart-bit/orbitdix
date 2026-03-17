@@ -11,6 +11,7 @@ import Syncing           from './pages/auth/Syncing'
 
 // Main app shell
 import Shell       from './components/Shell'
+import RequireAuth from './components/RequireAuth'
 import Dashboard   from './pages/Dashboard'
 import FindPath    from './pages/FindPath'
 import MyNetwork   from './pages/MyNetwork'
@@ -30,7 +31,8 @@ export default function App() {
         <Route path="/auth/install-extension" element={<InstallExtension />} />
         <Route path="/auth/syncing"           element={<Syncing />}          />
 
-        {/* Main app (with sidebar) */}
+        {/* Main app (with sidebar) — requires auth */}
+        <Route element={<RequireAuth />}>
         <Route element={<Shell />}>
           <Route path="/dashboard" element={<Dashboard />}  />
           <Route path="/find-path" element={<FindPath />}   />
@@ -38,6 +40,7 @@ export default function App() {
           <Route path="/saved"     element={<SavedPaths />} />
           <Route path="/team"      element={<Team />}       />
           <Route path="/activity"  element={<Activity />}   />
+        </Route>
         </Route>
 
         {/* Default: start at sign in */}

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { mockActivity, currentUser } from '../data/mockData'
+import { api } from '../api/client'
 
 function StatCard({ label, value, delta }) {
   return (
@@ -27,35 +27,23 @@ function StatCard({ label, value, delta }) {
   )
 }
 
-function ActivityIcon({ type }) {
-  const styles = {
-    path_found:   { bg: 'var(--accent-dim)',               color: 'var(--accent)',  emoji: '🔗' },
-    message_sent: { bg: 'rgba(52, 211, 153, 0.08)',        color: 'var(--success)', emoji: '✉️' },
-    connection:   { bg: 'rgba(251, 191, 36, 0.08)',        color: 'var(--warning)', emoji: '⚡' },
-  }
-  const s = styles[type] || styles.path_found
-  return (
-    <div
-      style={{
-        width: '34px',
-        height: '34px',
-        borderRadius: '8px',
-        background: s.bg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '15px',
-        flexShrink: 0,
-      }}
-    >
-      {s.emoji}
-    </div>
-  )
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const [bannerDismissed, setBannerDismissed] = useState(false)
+  const [stats, setStats]   = useState({ connections: '…' })
+  const [userName, setUserName] = useState(localStorage.getItem('user_first_name') || '')
+
+  useEffect(() => {
+    api.getStats().then(setStats).catch(() => {})
+    api.listPeople().then(data => {
+      const self = (data.people || []).find(p => p.is_self)
+      if (self?.first_name) {
+        setUserName(self.first_name)
+        localStorage.setItem('user_first_name', self.first_name)
+      }
+    }).catch(() => {})
+  }, [])
 
   return (
     <div style={{ padding: '32px', maxWidth: '900px' }}>
@@ -69,7 +57,7 @@ export default function Dashboard() {
             margin: '0 0 4px',
           }}
         >
-          Good morning, {currentUser.first_name} 👋
+          Good morning{userName ? `, ${userName}` : ''} 👋
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
           Here&apos;s what&apos;s happening in your network today.
@@ -144,9 +132,9 @@ export default function Dashboard() {
           marginBottom: '28px',
         }}
       >
-        <StatCard label="Connections" value={currentUser.connections} delta="+12 this week" />
-        <StatCard label="Paths Found"   value={currentUser.paths_found}   delta="+3 this week" />
-        <StatCard label="Messages Sent" value={currentUser.messages_sent} delta="+2 this week" />
+        <StatCard label="Connections"   value={stats.connections?.toLocaleString() ?? '…'} />
+        <StatCard label="Paths Found"   value="—" />
+        <StatCard label="Messages Sent" value="—" />
       </div>
 
       {/* Quick actions */}
@@ -207,27 +195,8 @@ export default function Dashboard() {
         >
           Recent activity
         </h2>
-        <div className="card" style={{ overflow: 'hidden' }}>
-          {mockActivity.map((item, i) => (
-            <div
-              key={item.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                padding: '14px 18px',
-                borderBottom: i < mockActivity.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-              }}
-            >
-              <ActivityIcon type={item.type} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{item.text}</div>
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                {item.time}
-              </div>
-            </div>
-          ))}
+        <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+          Activity tracking coming soon.
         </div>
       </div>
     </div>

@@ -223,7 +223,7 @@ def oauth_callback(provider):
     user = _find_or_create_user(profile)
 
     # ── Issue JWT and send to frontend ────────────────────────────────────────
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     return redirect(
         f"{frontend_url}/auth/oauth-callback"
