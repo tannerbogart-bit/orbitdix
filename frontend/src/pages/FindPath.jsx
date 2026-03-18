@@ -58,7 +58,7 @@ function PersonCard({ person, onSelect, selected }) {
   )
 }
 
-function PathDetailPanel({ pathPeople, target, onDraftMessage, onReset, onSave, alreadySaved }) {
+function PathDetailPanel({ pathPeople, edges, target, onDraftMessage, onReset, onSave, alreadySaved }) {
   if (!pathPeople) return null
 
   if (pathPeople.length === 0) {
@@ -313,6 +313,7 @@ export default function FindPath() {
       {step === 'result' && (
         <PathDetailPanel
           pathPeople={pathPeople}
+          edges={edges}
           target={toPerson}
           onDraftMessage={(target, pathPeople) => setModal({ target, pathPeople, edges })}
           onReset={handleReset}

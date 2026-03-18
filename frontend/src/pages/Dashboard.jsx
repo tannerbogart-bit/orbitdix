@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
+const ACTIVITY_META = {
+  path_found:        { emoji: '🔗', color: 'var(--accent)' },
+  message_drafted:   { emoji: '✉️', color: 'var(--success)' },
+  connection_added:  { emoji: '⚡', color: 'var(--warning)' },
+  person_imported:   { emoji: '📥', color: 'var(--accent)' },
+}
+
+function timeAgo(isoString) {
+  const diff = Math.floor((Date.now() - new Date(isoString)) / 1000)
+  if (diff < 60)    return `${diff}s ago`
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
+
 function StatCard({ label, value, delta }) {
   return (
     <div className="card" style={{ padding: '20px 24px' }}>
@@ -31,11 +46,13 @@ function StatCard({ label, value, delta }) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const [bannerDismissed, setBannerDismissed] = useState(false)
-  const [stats, setStats]   = useState({ connections: '…' })
+  const [stats, setStats]      = useState({ connections: '…' })
+  const [activities, setActivities] = useState(null)  // null = loading
   const [userName, setUserName] = useState(localStorage.getItem('user_first_name') || '')
 
   useEffect(() => {
     api.getStats().then(setStats).catch(() => {})
+    api.listActivity().then(d => setActivities((d.activities || []).slice(0, 5))).catch(() => setActivities([]))
     api.listPeople().then(data => {
       const self = (data.people || []).find(p => p.is_self)
       if (self?.first_name) {
@@ -195,9 +212,38 @@ export default function Dashboard() {
         >
           Recent activity
         </h2>
-        <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-          Activity tracking coming soon.
-        </div>
+        {activities === null ? (
+          <div className="card" style={{ padding: '24px', color: 'var(--text-muted)', fontSize: '14px' }}>Loading…</div>
+        ) : activities.length === 0 ? (
+          <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+            Start finding paths and sending messages to see activity here.
+          </div>
+        ) : (
+          <div className="card" style={{ overflow: 'hidden' }}>
+            {activities.map((item, i) => {
+              const meta = ACTIVITY_META[item.type] || ACTIVITY_META.path_found
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '14px',
+                    padding: '14px 20px',
+                    borderBottom: i < activities.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  }}
+                >
+                  <div style={{ fontSize: '18px', width: '28px', textAlign: 'center', flexShrink: 0 }}>{meta.emoji}</div>
+                  <div style={{ flex: 1, fontSize: '13px', color: 'var(--text-primary)' }}>{item.text}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{timeAgo(item.created_at)}</div>
+                </div>
+              )
+            })}
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)' }}>
+              <button className="btn-ghost" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={() => navigate('/activity')}>
+                View all activity →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

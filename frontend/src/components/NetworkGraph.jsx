@@ -106,11 +106,13 @@ function buildLayout(people, edges, highlightedPath = []) {
   }
 
   // Place nodes on rings
+  const initials = p => ((p.first_name?.[0] || '') + (p.last_name?.[0] || '')).toUpperCase() || '?'
+
   const nodes = [{
     id: String(me.id),
     type: 'person',
     position: { x: cx - 32, y: cy - 32 },
-    data: { label: me.first_name, avatar: me.avatar, isMe: true, degree: 0, highlighted: highlightedPath.includes(me.id) },
+    data: { label: me.first_name, avatar: initials(me), isMe: true, degree: 0, highlighted: highlightedPath.includes(me.id) },
   }]
 
   for (let d = 1; d <= 3; d++) {
@@ -122,7 +124,7 @@ function buildLayout(people, edges, highlightedPath = []) {
         id: String(p.id),
         type: 'person',
         position: { x: cx + r * Math.cos(angle) - 26, y: cy + r * Math.sin(angle) - 26 },
-        data: { label: p.first_name, avatar: p.avatar, isMe: false, degree: d, highlighted: highlightedPath.includes(p.id) },
+        data: { label: p.first_name, avatar: initials(p), isMe: false, degree: d, highlighted: highlightedPath.includes(p.id) },
       })
     })
   }

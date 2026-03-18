@@ -76,18 +76,7 @@ export default function SavedPaths() {
 
   useEffect(() => {
     api.listSavedPaths()
-      .then(data => {
-        // Attach path_people array (resolve from path_ids + from/to_person)
-        const enriched = (data.saved_paths || []).map(sp => ({
-          ...sp,
-          path_people: sp.path_ids.map(id => {
-            if (id === sp.from_person?.id) return sp.from_person
-            if (id === sp.to_person?.id)   return sp.to_person
-            return null
-          }).filter(Boolean),
-        }))
-        setPaths(enriched)
-      })
+      .then(data => setPaths(data.saved_paths || []))
       .catch(() => toast?.add('Failed to load saved paths', 'error'))
       .finally(() => setLoading(false))
   }, [])

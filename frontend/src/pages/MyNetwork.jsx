@@ -305,6 +305,7 @@ export default function MyNetwork() {
               <NetworkGraph
                 people={withAvatars}
                 edges={edges}
+                highlightedPath={selectedNode ? [selectedNode.id] : []}
                 onNodeClick={handleNodeClick}
               />
             </div>

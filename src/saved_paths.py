@@ -33,11 +33,13 @@ def _person_dict(p):
 
 
 def _saved_path_dict(sp, people_by_id):
+    path_ids = json.loads(sp.path_ids)
     return {
-        "id": sp.id,
+        "id":          sp.id,
         "from_person": _person_dict(people_by_id.get(sp.from_person_id)),
         "to_person":   _person_dict(people_by_id.get(sp.to_person_id)),
-        "path_ids":    json.loads(sp.path_ids),
+        "path_ids":    path_ids,
+        "path_people": [_person_dict(people_by_id.get(pid)) for pid in path_ids if people_by_id.get(pid)],
         "degrees":     sp.degrees,
         "created_at":  sp.created_at.isoformat(),
     }

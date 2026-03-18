@@ -118,7 +118,7 @@ export default function DraftMessageModal({ path, target, edges = [], onClose })
                       className={`path-node-avatar ${i === 0 || i === path.length - 1 ? 'highlighted' : ''}`}
                       style={{ width: '36px', height: '36px', fontSize: '12px' }}
                     >
-                      {person.avatar}
+                      {((person.first_name?.[0] || '') + (person.last_name?.[0] || '')).toUpperCase() || '?'}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', maxWidth: '48px', textAlign: 'center', lineHeight: 1.2 }}>
                       {person.first_name}
