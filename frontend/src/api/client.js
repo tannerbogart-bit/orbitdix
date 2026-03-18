@@ -21,13 +21,15 @@ async function req(method, path, body) {
 }
 
 export const api = {
+  // Auth
+  me: ()                   => req('GET', '/me'),
+
   // People
   listPeople: ()           => req('GET',    '/people'),
   createPerson: (data)     => req('POST',   '/people', data),
   deletePerson: (id)       => req('DELETE', `/people/${id}`),
   bulkImport: (people)     => req('POST',   '/people/bulk', { people }),
   updatePerson: (id, data) => req('PUT',    `/people/${id}`, data),
-  deletePerson: (id)       => req('DELETE', `/people/${id}`),
   getStats: ()             => req('GET',    '/stats'),
 
   // Edges
@@ -36,5 +38,16 @@ export const api = {
   deleteEdge: (id)         => req('DELETE', `/edges/${id}`),
 
   // Path finding
-  findPath: (fromId, toId) => req('GET', `/path?from=${fromId}&to=${toId}`),
+  findPath: (toPersonId)   => req('POST', '/intro-path', { to_person_id: toPersonId }),
+
+  // Saved paths
+  listSavedPaths: ()       => req('GET',    '/saved-paths'),
+  savePath: (pathIds)      => req('POST',   '/saved-paths', { path_ids: pathIds }),
+  deleteSavedPath: (id)    => req('DELETE', `/saved-paths/${id}`),
+
+  // Activity
+  listActivity: ()         => req('GET', '/activity'),
+
+  // Stats
+  recordMessageDrafted: () => req('POST', '/stats/message-drafted'),
 }

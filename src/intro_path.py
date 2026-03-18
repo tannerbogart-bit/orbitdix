@@ -3,7 +3,8 @@ from collections import deque
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
-from .models import Edge, Person, db
+from .models import Edge, Person, Tenant, User, db
+from .saved_paths import log_activity
 
 bp = Blueprint("intro_path", __name__)
 
@@ -27,6 +28,7 @@ def intro_path():
     target_id = int(to_person_id)
 
     if start_id == target_id:
+        _increment_paths_found(self_person.tenant_id)
         return jsonify(path=[start_id])
 
     # Confirm target exists in same tenant
@@ -52,9 +54,20 @@ def intro_path():
         current = path[-1]
         for neighbor in adjacency.get(current, []):
             if neighbor == target_id:
+                _increment_paths_found(self_person.tenant_id)
+                user = db.session.get(User, user_id)
+                if user and target:
+                    log_activity(user, "path_found", f"Found path to {target.first_name} {target.last_name}")
                 return jsonify(path=path + [neighbor])
             if neighbor not in visited:
                 visited.add(neighbor)
                 queue.append(path + [neighbor])
 
     return jsonify(error="No path found"), 404
+
+
+def _increment_paths_found(tenant_id):
+    tenant = db.session.get(Tenant, tenant_id)
+    if tenant:
+        tenant.paths_found = (tenant.paths_found or 0) + 1
+        db.session.commit()

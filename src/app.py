@@ -54,17 +54,19 @@ def create_app():
         print("[JWT] Token has expired")
         return jsonify(error="Token has expired"), 401
 
-    from .models import Person, Edge, Tenant, User  # noqa: F401 — registers models with SQLAlchemy
+    from .models import Person, Edge, Tenant, User, SavedPath, Activity  # noqa: F401 — registers models with SQLAlchemy
 
     from .auth import bp as auth_bp
     from .intro_path import bp as intro_path_bp
     from .oauth import bp as oauth_bp
     from .people import bp as people_bp
+    from .saved_paths import bp as saved_paths_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(intro_path_bp)
     app.register_blueprint(oauth_bp)
     app.register_blueprint(people_bp)
+    app.register_blueprint(saved_paths_bp)
 
     @app.get("/health")
     def health():

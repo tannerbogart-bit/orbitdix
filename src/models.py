@@ -6,9 +6,11 @@ from .db import db
 class Tenant(db.Model):
     __tablename__ = "tenants"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    id               = db.Column(db.Integer,  primary_key=True)
+    name             = db.Column(db.String(255), nullable=False)
+    paths_found      = db.Column(db.Integer,  nullable=False, default=0)
+    messages_drafted = db.Column(db.Integer,  nullable=False, default=0)
+    created_at       = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     users   = db.relationship("User",   back_populates="tenant", lazy=True, cascade="all, delete-orphan", passive_deletes=True)
     persons = db.relationship("Person", back_populates="tenant", lazy=True, cascade="all, delete-orphan", passive_deletes=True)
@@ -73,6 +75,39 @@ class Person(db.Model):
     )
 
 
+class SavedPath(db.Model):
+    __tablename__ = "saved_paths"
+    __table_args__ = (
+        db.Index("ix_saved_paths_user_id",   "user_id"),
+        db.Index("ix_saved_paths_tenant_id", "tenant_id"),
+    )
+
+    id             = db.Column(db.Integer,    primary_key=True)
+    tenant_id      = db.Column(db.Integer,    db.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    user_id        = db.Column(db.Integer,    db.ForeignKey("users.id",   ondelete="CASCADE"), nullable=False)
+    from_person_id = db.Column(db.Integer,    db.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False)
+    to_person_id   = db.Column(db.Integer,    db.ForeignKey("persons.id", ondelete="CASCADE"), nullable=False)
+    path_ids       = db.Column(db.Text,       nullable=False)  # JSON array of person IDs
+    degrees        = db.Column(db.Integer,    nullable=False, default=0)
+    created_at     = db.Column(db.DateTime,   default=lambda: datetime.now(timezone.utc))
+
+
+class Activity(db.Model):
+    __tablename__ = "activities"
+    __table_args__ = (
+        db.Index("ix_activities_tenant_id", "tenant_id"),
+        db.Index("ix_activities_user_id",   "user_id"),
+        db.Index("ix_activities_created_at","created_at"),
+    )
+
+    id         = db.Column(db.Integer,    primary_key=True)
+    tenant_id  = db.Column(db.Integer,    db.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    user_id    = db.Column(db.Integer,    db.ForeignKey("users.id",   ondelete="CASCADE"), nullable=False)
+    type       = db.Column(db.String(50), nullable=False)  # path_found | message_drafted | connection_added | person_imported
+    text       = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime,   default=lambda: datetime.now(timezone.utc))
+
+
 class Edge(db.Model):
     __tablename__ = "edges"
     __table_args__ = (
@@ -92,6 +127,7 @@ class Edge(db.Model):
     from_person_id   = db.Column(db.Integer,    db.ForeignKey("persons.id",  ondelete="CASCADE"), nullable=False)
     to_person_id     = db.Column(db.Integer,    db.ForeignKey("persons.id",  ondelete="CASCADE"), nullable=False)
     relationship_type = db.Column(db.String(100), nullable=False, default="linkedin")
+    relationship_note = db.Column(db.Text,       nullable=True)
     strength         = db.Column(db.Integer,    nullable=True)
     created_at       = db.Column(db.DateTime,   default=lambda: datetime.now(timezone.utc))
 

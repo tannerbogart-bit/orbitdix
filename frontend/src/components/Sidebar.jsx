@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { api } from '../api/client'
 
 const NAV = [
   {
@@ -86,6 +88,35 @@ const NAV = [
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const [user, setUser] = useState(() => {
+    // Seed from localStorage so it shows immediately on load
+    const firstName = localStorage.getItem('user_first_name') || ''
+    const lastName  = localStorage.getItem('user_last_name')  || ''
+    const email     = localStorage.getItem('user_email')      || ''
+    return { firstName, lastName, email }
+  })
+
+  useEffect(() => {
+    api.me().then(data => {
+      const p = data.self_person_id // we don't get name from /me directly
+      const firstName = localStorage.getItem('user_first_name') || ''
+      const lastName  = localStorage.getItem('user_last_name')  || ''
+      setUser({ firstName, lastName, email: data.user?.email || '' })
+    }).catch(() => {})
+
+    // Also pull from people list to get first/last name
+    api.listPeople().then(data => {
+      const self = (data.people || []).find(p => p.is_self)
+      if (self) {
+        localStorage.setItem('user_first_name', self.first_name || '')
+        localStorage.setItem('user_last_name',  self.last_name  || '')
+        setUser(prev => ({ ...prev, firstName: self.first_name || '', lastName: self.last_name || '' }))
+      }
+    }).catch(() => {})
+  }, [])
+
+  const initials = ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase() || '?'
+  const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'You'
 
   return (
     <aside
@@ -204,22 +235,13 @@ export default function Sidebar() {
             flexShrink: 0,
           }}
         >
-          JB
+          {initials}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: '13px',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            Jordan Blake
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {displayName}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Product Manager</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
         </div>
       </div>
     </aside>

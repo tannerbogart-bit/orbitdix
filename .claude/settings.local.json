@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm create:*)"
+      "Bash(npm create:*)",
+      "Bash(curl -s http://localhost:5000/health)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(python -m flask --app src.app:create_app db migrate -m \"add relationship_note to edges\")",
+      "Bash(python -m flask --app src.app:create_app db upgrade)"
     ]
   }
 }

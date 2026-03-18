@@ -132,9 +132,9 @@ export default function Dashboard() {
           marginBottom: '28px',
         }}
       >
-        <StatCard label="Connections"   value={stats.connections?.toLocaleString() ?? '…'} />
-        <StatCard label="Paths Found"   value="—" />
-        <StatCard label="Messages Sent" value="—" />
+        <StatCard label="Connections"      value={stats.connections?.toLocaleString()     ?? '…'} />
+        <StatCard label="Paths Found"      value={stats.paths_found?.toLocaleString()     ?? '—'} />
+        <StatCard label="Messages Drafted" value={stats.messages_drafted?.toLocaleString() ?? '—'} />
       </div>
 
       {/* Quick actions */}

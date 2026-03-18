@@ -1,13 +1,59 @@
 import { useState } from 'react'
+import { api } from '../api/client'
 
-export default function DraftMessageModal({ path, target, onClose }) {
-  const [message, setMessage] = useState(
-    `Hi ${target?.first_name},\n\nI came across your profile and I'd love to connect. I noticed we share ${target?.mutual || 'some'} mutual connections — would you be open to a quick chat?\n\nBest,\nJordan`
-  )
+function buildMessage(target, path, edges = []) {
+  if (!path || path.length < 2) {
+    return `Hi ${target?.first_name},\n\nI'd love to connect and learn more about your work. Would you be open to a quick chat?\n\nBest`
+  }
+
+  // Build edge note map
+  const edgeNoteMap = {}
+  for (const e of edges) {
+    const key = `${Math.min(e.from_person_id, e.to_person_id)}-${Math.max(e.from_person_id, e.to_person_id)}`
+    if (e.relationship_note) edgeNoteMap[key] = e.relationship_note
+  }
+
+  // The first hop is always: me → connector (path[1])
+  const connector = path[1]
+  const connectorNote = (() => {
+    if (path.length < 2) return null
+    const key = `${Math.min(path[0].id, path[1].id)}-${Math.max(path[0].id, path[1].id)}`
+    return edgeNoteMap[key] || null
+  })()
+
+  // The last hop: path[n-2] → target
+  const introducerToTarget = path.length > 2 ? path[path.length - 2] : connector
+  const introducerNote = (() => {
+    if (path.length < 2) return null
+    const a = path[path.length - 2], b = path[path.length - 1]
+    const key = `${Math.min(a.id, b.id)}-${Math.max(a.id, b.id)}`
+    return edgeNoteMap[key] || null
+  })()
+
+  const connectorContext = connectorNote ? ` (${connectorNote})` : ''
+  const introducerContext = introducerNote
+    ? ` I understand you two know each other — ${introducerNote}.`
+    : ''
+
+  if (path.length === 2) {
+    // Direct: me → target — no intermediary, just a direct cold message
+    return `Hi ${target?.first_name},\n\nI came across your profile and wanted to reach out directly. I'd love to connect and hear more about your work.\n\nWould you be open to a quick chat?\n\nBest`
+  }
+
+  const via = introducerToTarget.first_name !== connector.first_name
+    ? `${connector.first_name}${connectorContext} → ${introducerToTarget.first_name}`
+    : `${connector.first_name}${connectorContext}`
+
+  return `Hi ${connector?.first_name},\n\nI hope you're doing well! I'm trying to get an intro to ${target?.first_name} ${target?.last_name}${introducerContext}\n\nWould you be able to make an introduction? I'd love to connect with them about [your reason].\n\nPath: ${via} → ${target?.first_name}\n\nThanks so much!`
+}
+
+export default function DraftMessageModal({ path, target, edges = [], onClose }) {
+  const [message, setMessage] = useState(() => buildMessage(target, path, edges))
   const [sent, setSent] = useState(false)
 
   function handleSend() {
     setSent(true)
+    api.recordMessageDrafted().catch(() => {})
     setTimeout(onClose, 1800)
   }
 

@@ -10,7 +10,8 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from .db import db
-from .models import Person, User
+from .models import Edge, Person, Tenant, User
+from .saved_paths import log_activity
 
 bp = Blueprint("people", __name__)
 
@@ -39,11 +40,16 @@ def list_people():
     if user is None:
         return jsonify(error="User not found"), 404
 
-    people = Person.query.filter_by(tenant_id=user.tenant_id).order_by(
-        Person.is_self.desc(), Person.first_name, Person.last_name
-    ).all()
+    page     = request.args.get('page',  1,    type=int)
+    per_page = min(request.args.get('per_page', 500, type=int), 500)
 
-    return jsonify(people=[_person_dict(p) for p in people])
+    query = Person.query.filter_by(tenant_id=user.tenant_id).order_by(
+        Person.is_self.desc(), Person.first_name, Person.last_name
+    )
+    total  = query.count()
+    people = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    return jsonify(people=[_person_dict(p) for p in people], total=total, page=page, per_page=per_page)
 
 
 @bp.put("/api/people/<int:person_id>")
@@ -94,8 +100,27 @@ def get_stats():
     if user is None:
         return jsonify(error="User not found"), 404
 
-    total = Person.query.filter_by(tenant_id=user.tenant_id, is_self=False).count()
-    return jsonify(connections=total)
+    total  = Person.query.filter_by(tenant_id=user.tenant_id, is_self=False).count()
+    tenant = db.session.get(Tenant, user.tenant_id)
+    return jsonify(
+        connections=total,
+        paths_found=tenant.paths_found if tenant else 0,
+        messages_drafted=tenant.messages_drafted if tenant else 0,
+    )
+
+
+@bp.post("/api/stats/message-drafted")
+@jwt_required()
+def record_message_drafted():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify(error="User not found"), 404
+    tenant = db.session.get(Tenant, user.tenant_id)
+    if tenant:
+        tenant.messages_drafted = (tenant.messages_drafted or 0) + 1
+        db.session.commit()
+    return jsonify(ok=True)
 
 
 @bp.post("/api/people/bulk")
@@ -198,9 +223,71 @@ def bulk_import_people():
 
     if new_people:
         db.session.add_all(new_people)
+    if imported > 0:
+        log_activity(user, "person_imported", f"Imported {imported} contact{'s' if imported != 1 else ''}")
     db.session.commit()
 
     return jsonify(imported=imported, updated=updated, skipped=skipped), 201
+
+
+@bp.get("/api/edges")
+@jwt_required()
+def list_edges():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify(error="User not found"), 404
+
+    edges = Edge.query.filter_by(tenant_id=user.tenant_id).all()
+    return jsonify(edges=[
+        {"id": e.id, "from_person_id": e.from_person_id, "to_person_id": e.to_person_id, "relationship_note": e.relationship_note}
+        for e in edges
+    ])
+
+
+@bp.post("/api/edges")
+@jwt_required()
+def create_edge():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify(error="User not found"), 404
+
+    data = request.get_json(silent=True) or {}
+    from_id = data.get("from_person_id")
+    to_id   = data.get("to_person_id")
+
+    if not from_id or not to_id:
+        return jsonify(error="from_person_id and to_person_id are required"), 400
+    if from_id == to_id:
+        return jsonify(error="Cannot connect a person to themselves"), 400
+
+    tid = user.tenant_id
+
+    # Verify both people belong to this tenant
+    from_person = Person.query.filter_by(id=from_id, tenant_id=tid).first()
+    to_person   = Person.query.filter_by(id=to_id,   tenant_id=tid).first()
+    if not from_person or not to_person:
+        return jsonify(error="One or both people not found"), 404
+
+    # Check both directions to keep the graph logically undirected
+    existing = Edge.query.filter(
+        Edge.tenant_id == tid,
+        db.or_(
+            db.and_(Edge.from_person_id == from_id, Edge.to_person_id == to_id),
+            db.and_(Edge.from_person_id == to_id,   Edge.to_person_id == from_id),
+        )
+    ).first()
+    if existing:
+        return jsonify(error="These people are already connected"), 409
+
+    note = _clean(data.get("relationship_note"))
+    edge = Edge(tenant_id=tid, from_person_id=from_id, to_person_id=to_id, relationship_note=note)
+    db.session.add(edge)
+    log_activity(user, "connection_added", f"Connected {from_person.first_name} {from_person.last_name} and {to_person.first_name} {to_person.last_name}")
+    db.session.commit()
+
+    return jsonify(edge={"id": edge.id, "from_person_id": edge.from_person_id, "to_person_id": edge.to_person_id}), 201
 
 
 def _clean(val):

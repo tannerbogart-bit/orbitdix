@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { mockEdges } from '../data/mockData'
-import NetworkGraph from '../components/NetworkGraph'
+import NetworkGraph, { computeDegreeCounts } from '../components/NetworkGraph'
 import AddPersonModal from '../components/AddPersonModal'
+import AddEdgeModal from '../components/AddEdgeModal'
 import CSVUploadModal from '../components/CSVUploadModal'
 import EditPersonModal from '../components/EditPersonModal'
 import { useToast } from '../components/Toast'
@@ -62,24 +62,33 @@ export default function MyNetwork() {
   const toast     = useToast()
 
   const [people, setPeople]         = useState([])
+  const [edges, setEdges]           = useState([])
   const [loading, setLoading]       = useState(true)
   const [query, setQuery]           = useState('')
   const [tab, setTab]               = useState('List')
   const [showAdd, setShowAdd]       = useState(false)
   const [showCSV, setShowCSV]       = useState(false)
+  const [showEdge, setShowEdge]     = useState(false)
+  const [edgePreselect, setEdgePreselect] = useState(null)
   const [editPerson, setEditPerson] = useState(null)
   const [selectedNode, setSelectedNode] = useState(null)
 
   useEffect(() => {
-    api.listPeople()
-      .then(data => setPeople(data.people || []))
+    Promise.all([api.listPeople(), api.listEdges()])
+      .then(([peopleData, edgeData]) => {
+        setPeople(peopleData.people || [])
+        setEdges(edgeData.edges || [])
+      })
       .catch(() => toast?.add('Failed to load network', 'error'))
       .finally(() => setLoading(false))
   }, [])
 
   function refreshPeople() {
-    api.listPeople()
-      .then(data => setPeople(data.people || []))
+    Promise.all([api.listPeople(), api.listEdges()])
+      .then(([peopleData, edgeData]) => {
+        setPeople(peopleData.people || [])
+        setEdges(edgeData.edges || [])
+      })
       .catch(() => {})
   }
 
@@ -123,6 +132,11 @@ export default function MyNetwork() {
     toast?.add('Contact removed', 'success')
   }
 
+  function handleAddEdge(personA, personB) {
+    refreshPeople()
+    toast?.add(`Connected ${personA.first_name} and ${personB.first_name}`, 'success')
+  }
+
   function handleNodeClick(person) {
     setSelectedNode(person)
   }
@@ -140,6 +154,18 @@ export default function MyNetwork() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: '13px', padding: '9px 16px' }}
+            onClick={() => { setEdgePreselect(null); setShowEdge(true) }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="3" cy="7" r="2" stroke="currentColor" strokeWidth="1.4" />
+              <circle cx="11" cy="7" r="2" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M5 7h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            Add connection
+          </button>
           <button
             className="btn-ghost"
             style={{ fontSize: '13px', padding: '9px 16px' }}
@@ -165,20 +191,25 @@ export default function MyNetwork() {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        {[
-          { label: 'Direct',      value: '4'   },
-          { label: '2nd degree',  value: '18'  },
-          { label: '3rd degree+', value: '290' },
-        ].map((s) => (
-          <div key={s.label} className="card" style={{ padding: '14px 16px', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {s.value}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{s.label}</div>
+      {(() => {
+        const { direct, second, thirdPlus } = computeDegreeCounts(withAvatars, edges)
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {[
+              { label: 'Direct',      value: loading ? '…' : direct.toLocaleString()    },
+              { label: '2nd degree',  value: loading ? '…' : second.toLocaleString()    },
+              { label: '3rd degree+', value: loading ? '…' : thirdPlus.toLocaleString() },
+            ].map((s) => (
+              <div key={s.label} className="card" style={{ padding: '14px 16px', textAlign: 'center' }}>
+                <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {s.value}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{s.label}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )
+      })()}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '16px' }}>
@@ -246,15 +277,37 @@ export default function MyNetwork() {
       {/* Graph tab */}
       {tab === 'Graph' && (
         <div style={{ display: 'grid', gridTemplateColumns: selectedNode ? '1fr 280px' : '1fr', gap: '16px' }}>
-          <div
-            className="card"
-            style={{ height: '520px', padding: 0, overflow: 'hidden' }}
-          >
-            <NetworkGraph
-              people={withAvatars}
-              edges={mockEdges}
-              onNodeClick={handleNodeClick}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Graph search */}
+            <div style={{ position: 'relative' }}>
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none"
+                style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
+                <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M10 10l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              <input
+                className="input"
+                placeholder="Highlight a person in the graph…"
+                style={{ paddingLeft: '34px', fontSize: '13px' }}
+                onChange={e => {
+                  const q = e.target.value.toLowerCase()
+                  const match = q ? withAvatars.find(p =>
+                    p.first_name?.toLowerCase().includes(q) || p.last_name?.toLowerCase().includes(q)
+                  ) : null
+                  if (match) handleNodeClick(match)
+                }}
+              />
+            </div>
+            <div
+              className="card"
+              style={{ height: '520px', padding: 0, overflow: 'hidden' }}
+            >
+              <NetworkGraph
+                people={withAvatars}
+                edges={edges}
+                onNodeClick={handleNodeClick}
+              />
+            </div>
           </div>
 
           {/* Node detail panel */}
@@ -304,13 +357,22 @@ export default function MyNetwork() {
               )}
 
               {!selectedNode.is_self && (
-                <button
-                  className="btn-primary"
-                  style={{ width: '100%', justifyContent: 'center', fontSize: '13px', padding: '9px' }}
-                  onClick={() => handleFindPath(selectedNode)}
-                >
-                  Find path to {selectedNode.first_name}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    className="btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', fontSize: '13px', padding: '9px' }}
+                    onClick={() => handleFindPath(selectedNode)}
+                  >
+                    Find path to {selectedNode.first_name}
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    style={{ width: '100%', justifyContent: 'center', fontSize: '13px', padding: '9px' }}
+                    onClick={() => { setEdgePreselect(selectedNode); setShowEdge(true) }}
+                  >
+                    Connect to…
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -318,6 +380,14 @@ export default function MyNetwork() {
       )}
 
       {/* Modals */}
+      {showEdge && (
+        <AddEdgeModal
+          people={withAvatars}
+          preselect={edgePreselect}
+          onAdd={handleAddEdge}
+          onClose={() => { setShowEdge(false); setEdgePreselect(null) }}
+        />
+      )}
       {showAdd && (
         <AddPersonModal
           onAdd={handleAddPerson}
