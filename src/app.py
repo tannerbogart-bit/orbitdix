@@ -38,6 +38,7 @@ def create_app():
     # Allow Vite dev server + Chrome extension (any extension ID)
     CORS(app, origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
         r"chrome-extension://.*",
     ], supports_credentials=True, allow_headers=["Content-Type", "Authorization"])
     db.init_app(app)
@@ -57,12 +58,14 @@ def create_app():
     from .models import Person, Edge, Tenant, User, SavedPath, Activity  # noqa: F401 — registers models with SQLAlchemy
 
     from .auth import bp as auth_bp
+    from .billing import bp as billing_bp
     from .intro_path import bp as intro_path_bp
     from .oauth import bp as oauth_bp
     from .people import bp as people_bp
     from .saved_paths import bp as saved_paths_bp
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(billing_bp)
     app.register_blueprint(intro_path_bp)
     app.register_blueprint(oauth_bp)
     app.register_blueprint(people_bp)

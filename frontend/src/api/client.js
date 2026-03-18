@@ -50,4 +50,12 @@ export const api = {
 
   // Stats
   recordMessageDrafted: () => req('POST', '/stats/message-drafted'),
+
+  // Billing
+  getBillingPlan:  ()     => req('GET',  '/billing/plan'),
+  createCheckout:  (plan) => req('POST', '/checkout', {
+    plan,
+    success_url: `${window.location.origin}/pricing/success`,
+    cancel_url:  `${window.location.origin}/pricing`,
+  }),
 }

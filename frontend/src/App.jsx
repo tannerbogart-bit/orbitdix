@@ -1,6 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastProvider } from './components/Toast'
 
+// Public pages
+import Pricing        from './pages/Pricing'
+import PricingSuccess from './pages/PricingSuccess'
+
 // Auth flow
 import SignIn            from './pages/auth/SignIn'
 import LinkedInOAuth     from './pages/auth/LinkedInOAuth'
@@ -23,6 +27,11 @@ export default function App() {
   return (
     <ToastProvider>
       <Routes>
+        {/* Public */}
+        <Route path="/"                       element={<Pricing />}         />
+        <Route path="/pricing"                element={<Pricing />}         />
+        <Route path="/pricing/success"        element={<PricingSuccess />}  />
+
         {/* Auth / onboarding */}
         <Route path="/auth/signin"            element={<SignIn />}           />
         <Route path="/auth/linkedin"          element={<LinkedInOAuth />}    />
@@ -43,8 +52,8 @@ export default function App() {
         </Route>
         </Route>
 
-        {/* Default: start at sign in */}
-        <Route path="*" element={<Navigate to="/auth/signin" replace />} />
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/pricing" replace />} />
       </Routes>
     </ToastProvider>
   )
