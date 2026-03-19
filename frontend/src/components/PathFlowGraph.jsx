@@ -16,6 +16,29 @@ const STEP_LABEL = {
   end:    { text: 'Target', bg: 'rgba(96,165,250,0.15)',  color: '#60a5fa' },
 }
 
+const TYPE_ICON = {
+  work:      '🏢',
+  school:    '🎓',
+  community: '🌐',
+  family:    '👥',
+  linkedin:  '💼',
+  other:     '🔗',
+}
+
+export function getHopLabel(edge, personA, personB) {
+  if (edge?.relationship_note) return `${TYPE_ICON[edge.relationship_type] || '🔗'} ${edge.relationship_note}`
+  if (edge?.relationship_type && edge.relationship_type !== 'linkedin') {
+    const icon = TYPE_ICON[edge.relationship_type] || '🔗'
+    const labels = { work: 'Work connection', school: 'School connection', community: 'Community', family: 'Family', other: 'Connection' }
+    return `${icon} ${labels[edge.relationship_type]}`
+  }
+  // Auto-infer from shared company
+  if (personA?.company && personB?.company && personA.company === personB.company) {
+    return `🏢 Both at ${personA.company}`
+  }
+  return null
+}
+
 function PathNode({ data }) {
   const { person, role } = data
   const label = STEP_LABEL[role]
@@ -105,11 +128,11 @@ function buildFlow(pathPeople, allEdges = []) {
   const GAP    = 80
   const x      = 0
 
-  // Build a lookup: canonical key → relationship_note
-  const edgeNoteMap = {}
+  // Build a lookup: canonical key → edge object
+  const edgeMap = {}
   for (const e of allEdges) {
     const key = `${Math.min(e.from_person_id, e.to_person_id)}-${Math.max(e.from_person_id, e.to_person_id)}`
-    if (e.relationship_note) edgeNoteMap[key] = e.relationship_note
+    edgeMap[key] = e
   }
 
   const nodes = pathPeople.map((person, i) => {
@@ -124,10 +147,11 @@ function buildFlow(pathPeople, allEdges = []) {
   })
 
   const flowEdges = pathPeople.slice(0, -1).map((person, i) => {
-    const next = pathPeople[i + 1]
-    const key  = `${Math.min(person.id, next.id)}-${Math.max(person.id, next.id)}`
-    const note = edgeNoteMap[key]
-    const defaultLabel = i === 0 ? 'ask for intro' : 'who knows'
+    const next  = pathPeople[i + 1]
+    const key   = `${Math.min(person.id, next.id)}-${Math.max(person.id, next.id)}`
+    const edge  = edgeMap[key]
+    const label = getHopLabel(edge, person, next)
+    const hasLabel = !!label
     return {
       id: `pe-${i}`,
       source: `pn-${i}`,
@@ -135,15 +159,15 @@ function buildFlow(pathPeople, allEdges = []) {
       animated: true,
       style: { stroke: 'var(--accent)', strokeWidth: 2 },
       markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--accent)', width: 14, height: 14 },
-      label: note || defaultLabel,
+      label: label || (i === 0 ? 'ask for intro' : 'who knows'),
       labelStyle: {
-        fill: note ? 'var(--text-primary)' : 'var(--text-muted)',
-        fontSize: note ? 12 : 11,
+        fill: hasLabel ? 'var(--text-primary)' : 'var(--text-muted)',
+        fontSize: hasLabel ? 12 : 11,
         fontFamily: 'DM Sans, sans-serif',
-        fontWeight: note ? 600 : 400,
+        fontWeight: hasLabel ? 600 : 400,
       },
       labelBgStyle: {
-        fill: note ? 'rgba(124,110,224,0.12)' : 'var(--bg-card)',
+        fill: hasLabel ? 'rgba(124,110,224,0.12)' : 'var(--bg-card)',
         fillOpacity: 0.95,
       },
       labelBgPadding: [8, 5],

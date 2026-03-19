@@ -117,22 +117,37 @@ function PersonPicker({ label, people, value, onChange, exclude }) {
   )
 }
 
-export default function AddEdgeModal({ people, onAdd, onClose, preselect }) {
-  const [personA, setPersonA] = useState(preselect || null)
-  const [personB, setPersonB] = useState(null)
-  const [note, setNote]       = useState('')
-  const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState(null)
+const REL_TYPES = [
+  { id: 'work',      icon: '🏢', label: 'Work',      placeholder: 'e.g. Both at Stripe 2019–2022' },
+  { id: 'school',    icon: '🎓', label: 'School',    placeholder: 'e.g. MIT Computer Science \'15' },
+  { id: 'community', icon: '🌐', label: 'Community', placeholder: 'e.g. YC S21, NeurIPS volunteer' },
+  { id: 'family',    icon: '👥', label: 'Family',    placeholder: 'e.g. cousins' },
+  { id: 'linkedin',  icon: '💼', label: 'LinkedIn',  placeholder: 'e.g. connected since 2020' },
+  { id: 'other',     icon: '🔗', label: 'Other',     placeholder: 'How do they know each other?' },
+]
 
-  // Exclude self from both pickers — connections are between contacts
+export default function AddEdgeModal({ people, onAdd, onClose, preselect }) {
+  const [personA, setPersonA]   = useState(preselect || null)
+  const [personB, setPersonB]   = useState(null)
+  const [relType, setRelType]   = useState('work')
+  const [note, setNote]         = useState('')
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState(null)
+
   const contacts = people.filter(p => !p.is_self)
+  const activeMeta = REL_TYPES.find(r => r.id === relType)
 
   async function handleSave() {
     if (!personA || !personB) return
     setSaving(true)
     setError(null)
     try {
-      await api.createEdge({ from_person_id: personA.id, to_person_id: personB.id, relationship_note: note || null })
+      await api.createEdge({
+        from_person_id:    personA.id,
+        to_person_id:      personB.id,
+        relationship_type: relType,
+        relationship_note: note || null,
+      })
       onAdd(personA, personB)
       onClose()
     } catch (err) {
@@ -183,14 +198,34 @@ export default function AddEdgeModal({ people, onAdd, onClose, preselect }) {
 
         <PersonPicker label="Person B" people={contacts} value={personB} onChange={setPersonB} exclude={personA} />
 
-        {/* Relationship context */}
+        {/* Relationship type */}
         <div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-            How do they know each other? <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
+            How do they know each other?
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+            {REL_TYPES.map(r => (
+              <button
+                key={r.id}
+                onClick={() => setRelType(r.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  padding: '6px 12px', borderRadius: '20px', fontSize: '13px',
+                  fontFamily: 'DM Sans, sans-serif', cursor: 'pointer',
+                  border: `1.5px solid ${relType === r.id ? 'var(--accent)' : 'var(--border)'}`,
+                  background: relType === r.id ? 'var(--accent-dim)' : 'var(--bg-input)',
+                  color: relType === r.id ? 'var(--accent)' : 'var(--text-secondary)',
+                  fontWeight: relType === r.id ? 600 : 400,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span>{r.icon}</span> {r.label}
+              </button>
+            ))}
           </div>
           <input
             className="input"
-            placeholder="e.g. Worked together at Acme 2019–2021, Stanford CS '15…"
+            placeholder={activeMeta?.placeholder || 'Add a note…'}
             value={note}
             onChange={e => setNote(e.target.value)}
           />

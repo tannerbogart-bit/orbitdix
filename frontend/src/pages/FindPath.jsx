@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import DraftMessageModal from '../components/DraftMessageModal'
-import PathFlowGraph from '../components/PathFlowGraph'
+import PathFlowGraph, { getHopLabel } from '../components/PathFlowGraph'
 import UpgradeModal from '../components/UpgradeModal'
 import { useToast } from '../components/Toast'
 import { api } from '../api/client'
@@ -79,6 +79,13 @@ function PathDetailPanel({ pathPeople, edges, target, onDraftMessage, onReset, o
 
   const degrees = pathPeople.length - 1
 
+  // Build edge lookup for connection chain
+  const edgeMap = {}
+  for (const e of edges) {
+    const key = `${Math.min(e.from_person_id, e.to_person_id)}-${Math.max(e.from_person_id, e.to_person_id)}`
+    edgeMap[key] = e
+  }
+
   return (
     <div className="card" style={{ padding: '24px', marginTop: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
@@ -98,9 +105,73 @@ function PathDetailPanel({ pathPeople, edges, target, onDraftMessage, onReset, o
         </button>
       </div>
 
-      {/* Path flow diagram */}
+      {/* Connection chain */}
       <div style={{ marginBottom: '20px' }}>
-        <PathFlowGraph pathPeople={pathPeople} edges={edges} />
+        {pathPeople.map((person, i) => {
+          const isLast = i === pathPeople.length - 1
+          const initials = ((person.first_name?.[0] || '') + (person.last_name?.[0] || '')).toUpperCase() || '?'
+          const isEnd = i === 0 || isLast
+
+          // Hop context between this person and the next
+          let hopLabel = null
+          if (!isLast) {
+            const next = pathPeople[i + 1]
+            const key  = `${Math.min(person.id, next.id)}-${Math.max(person.id, next.id)}`
+            hopLabel = getHopLabel(edgeMap[key], person, next)
+          }
+
+          return (
+            <div key={person.id}>
+              {/* Person row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
+                  background: isEnd ? 'var(--accent)' : 'var(--accent-dim)',
+                  border: `2px solid ${isEnd ? 'var(--accent)' : 'var(--border)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px',
+                  color: isEnd ? '#fff' : 'var(--accent)',
+                }}>
+                  {initials}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                    {person.first_name} {person.last_name}
+                    {i === 0 && <span style={{ marginLeft: '8px', fontSize: '11px', background: 'var(--accent-dim)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '20px', fontWeight: 700 }}>You</span>}
+                    {isLast && <span style={{ marginLeft: '8px', fontSize: '11px', background: 'rgba(96,165,250,0.15)', color: '#60a5fa', padding: '2px 8px', borderRadius: '20px', fontWeight: 700 }}>Target</span>}
+                  </div>
+                  {(person.title || person.company) && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '1px' }}>
+                      {person.title || ''}{person.company ? ` · ${person.company}` : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Hop connector */}
+              {!isLast && (
+                <div style={{ display: 'flex', alignItems: 'stretch', margin: '4px 0' }}>
+                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ width: '2px', background: 'var(--accent)', opacity: 0.3, borderRadius: '1px' }} />
+                  </div>
+                  <div style={{
+                    margin: '4px 0 4px 12px',
+                    padding: '5px 12px',
+                    background: hopLabel ? 'var(--accent-dim)' : 'var(--bg-input)',
+                    border: `1px solid ${hopLabel ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    color: hopLabel ? 'var(--accent)' : 'var(--text-muted)',
+                    fontWeight: hopLabel ? 600 : 400,
+                    alignSelf: 'center',
+                  }}>
+                    {hopLabel || 'connected'}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* Actions */}

@@ -300,7 +300,13 @@ def list_edges():
 
     edges = Edge.query.filter_by(tenant_id=user.tenant_id).all()
     return jsonify(edges=[
-        {"id": e.id, "from_person_id": e.from_person_id, "to_person_id": e.to_person_id, "relationship_note": e.relationship_note}
+        {
+            "id":                e.id,
+            "from_person_id":    e.from_person_id,
+            "to_person_id":      e.to_person_id,
+            "relationship_type": e.relationship_type,
+            "relationship_note": e.relationship_note,
+        }
         for e in edges
     ])
 
@@ -342,7 +348,10 @@ def create_edge():
         return jsonify(error="These people are already connected"), 409
 
     note = _clean(data.get("relationship_note"))
-    edge = Edge(tenant_id=tid, from_person_id=from_id, to_person_id=to_id, relationship_note=note)
+    rel_type = data.get("relationship_type", "linkedin")
+    if rel_type not in ("work", "school", "community", "family", "linkedin", "other"):
+        rel_type = "linkedin"
+    edge = Edge(tenant_id=tid, from_person_id=from_id, to_person_id=to_id, relationship_type=rel_type, relationship_note=note)
     db.session.add(edge)
     log_activity(user, "connection_added", f"Connected {from_person.first_name} {from_person.last_name} and {to_person.first_name} {to_person.last_name}")
     db.session.commit()
