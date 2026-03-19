@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import UpgradeModal from '../components/UpgradeModal'
 
 const ACTIVITY_META = {
   path_found:        { emoji: '🔗', color: 'var(--accent)' },
@@ -46,9 +47,10 @@ function StatCard({ label, value, delta }) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const [bannerDismissed, setBannerDismissed] = useState(false)
-  const [stats, setStats]      = useState({ connections: '…' })
-  const [activities, setActivities] = useState(null)  // null = loading
-  const [userName, setUserName] = useState(localStorage.getItem('user_first_name') || '')
+  const [stats, setStats]           = useState({ connections: '…' })
+  const [activities, setActivities] = useState(null)
+  const [userName, setUserName]     = useState(localStorage.getItem('user_first_name') || '')
+  const [showUpgrade, setShowUpgrade] = useState(false)
 
   useEffect(() => {
     api.getStats().then(setStats).catch(() => {})
@@ -154,6 +156,39 @@ export default function Dashboard() {
         <StatCard label="Messages Drafted" value={stats.messages_drafted?.toLocaleString() ?? '—'} />
       </div>
 
+      {/* Free plan usage meter */}
+      {stats.paths_limit && (
+        <div
+          className="card"
+          style={{ padding: '16px 20px', marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '16px' }}
+        >
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>Path searches this month</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                {stats.paths_this_month ?? 0} / {stats.paths_limit}
+              </span>
+            </div>
+            <div style={{ height: '6px', background: 'var(--bg-input)', borderRadius: '99px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${Math.min(100, ((stats.paths_this_month ?? 0) / stats.paths_limit) * 100)}%`,
+                background: (stats.paths_this_month ?? 0) >= stats.paths_limit ? 'var(--danger)' : 'var(--accent)',
+                borderRadius: '99px',
+                transition: 'width 0.3s',
+              }} />
+            </div>
+          </div>
+          <button
+            className="btn-primary"
+            style={{ fontSize: '12px', padding: '7px 14px', whiteSpace: 'nowrap', flexShrink: 0 }}
+            onClick={() => setShowUpgrade(true)}
+          >
+            Upgrade →
+          </button>
+        </div>
+      )}
+
       {/* Quick actions */}
       <div style={{ marginBottom: '28px' }}>
         <h2
@@ -258,6 +293,13 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {showUpgrade && (
+        <UpgradeModal
+          message="Upgrade to Pro for unlimited path searches, saved paths, AI-drafted messages, and more."
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
     </div>
   )
 }

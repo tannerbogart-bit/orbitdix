@@ -22,6 +22,7 @@ import Dashboard   from './pages/Dashboard'
 import FindPath    from './pages/FindPath'
 import MyNetwork   from './pages/MyNetwork'
 import SavedPaths  from './pages/SavedPaths'
+import Settings    from './pages/Settings'
 import Team        from './pages/Team'
 import Activity    from './pages/Activity'
 
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/find-path" element={<FindPath />}   />
           <Route path="/network"   element={<MyNetwork />}  />
           <Route path="/saved"     element={<SavedPaths />} />
+          <Route path="/settings"  element={<Settings />}   />
           <Route path="/team"      element={<Team />}       />
           <Route path="/activity"  element={<Activity />}   />
         </Route>

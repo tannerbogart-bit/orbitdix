@@ -208,15 +208,20 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* User */}
+      {/* User → Settings */}
       <div
+        onClick={() => navigate('/settings')}
         style={{
           padding: '12px 14px',
           borderTop: '1px solid var(--border-subtle)',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
+          cursor: 'pointer',
+          transition: 'background 0.15s',
         }}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
         <div
           style={{

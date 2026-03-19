@@ -11,7 +11,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from .db import db
 from .models import Edge, Person, Tenant, User
-from .plans import FREE_CONTACT_LIMIT, contact_count, is_pro, upgrade_error
+from .plans import FREE_CONTACT_LIMIT, FREE_MONTHLY_PATH_LIMIT, contact_count, is_pro, monthly_paths_used, upgrade_error
 from .saved_paths import log_activity
 
 bp = Blueprint("people", __name__)
@@ -142,10 +142,17 @@ def get_stats():
 
     total  = Person.query.filter_by(tenant_id=user.tenant_id, is_self=False).count()
     tenant = db.session.get(Tenant, user.tenant_id)
+    plan   = tenant.plan if tenant else "free"
+    pro    = is_pro(tenant)
     return jsonify(
         connections=total,
         paths_found=tenant.paths_found if tenant else 0,
         messages_drafted=tenant.messages_drafted if tenant else 0,
+        plan=plan,
+        is_pro=pro,
+        paths_this_month=monthly_paths_used(user.tenant_id),
+        paths_limit=None if pro else FREE_MONTHLY_PATH_LIMIT,
+        contacts_limit=None if pro else FREE_CONTACT_LIMIT,
     )
 
 
