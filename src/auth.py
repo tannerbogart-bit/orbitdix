@@ -5,6 +5,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from .email import send_password_reset
 from .models import Person, Tenant, User, db
 
 bp = Blueprint("auth", __name__)
@@ -91,9 +92,13 @@ def forgot_password():
         token = s.dumps(email, salt="password-reset")
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
         reset_link = f"{frontend_url}/auth/reset-password?token={token}"
-        print(f"[DEV] Password reset link: {reset_link}", flush=True)
-        if current_app.debug:
-            resp["dev_reset_link"] = reset_link
+
+        sent = send_password_reset(email, reset_link)
+        if not sent:
+            # No email provider configured — surface the link in dev
+            print(f"[DEV] Password reset link: {reset_link}", flush=True)
+            if current_app.debug:
+                resp["dev_reset_link"] = reset_link
 
     return jsonify(**resp)
 
