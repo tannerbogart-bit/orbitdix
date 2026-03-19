@@ -39,6 +39,83 @@ def send_password_reset(to_email: str, reset_link: str) -> bool:
         return False
 
 
+def send_verification_email(to_email: str, verify_link: str) -> bool:
+    """
+    Send an email verification link.
+    Returns True if sent, False if skipped (dev mode / not configured).
+    """
+    api_key = os.getenv("RESEND_API_KEY", "")
+    if not api_key:
+        return False
+
+    try:
+        import resend
+        resend.api_key = api_key
+
+        from_email = os.getenv("FROM_EMAIL", "OrbitSix <noreply@orbitsix.com>")
+        app_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+        resend.Emails.send({
+            "from": from_email,
+            "to": [to_email],
+            "subject": "Verify your OrbitSix email",
+            "html": _verify_email_html(verify_link, app_url),
+        })
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send verification email: {e}", flush=True)
+        return False
+
+
+def _verify_email_html(verify_link: str, app_url: str) -> str:
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f14;font-family:'DM Sans',Arial,sans-serif;color:#e2e2e8;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f14;padding:40px 0;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#1a1a2e;border:1px solid #2a2a3e;border-radius:16px;padding:40px 36px;">
+        <tr><td>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+            <tr>
+              <td style="background:#7c6ee0;width:36px;height:36px;border-radius:9px;text-align:center;vertical-align:middle;">
+                <span style="color:#fff;font-size:18px;font-weight:bold;">⬡</span>
+              </td>
+              <td style="padding-left:10px;font-size:18px;font-weight:700;color:#e2e2e8;vertical-align:middle;">OrbitSix</td>
+            </tr>
+          </table>
+          <h1 style="font-size:24px;font-weight:700;color:#e2e2e8;margin:0 0 12px;">Verify your email</h1>
+          <p style="font-size:15px;color:#8888a8;line-height:1.6;margin:0 0 32px;">
+            Click the button below to verify your email address and activate your OrbitSix account.
+            This link expires in <strong style="color:#e2e2e8;">24 hours</strong>.
+          </p>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+            <tr>
+              <td style="background:#7c6ee0;border-radius:8px;">
+                <a href="{verify_link}"
+                   style="display:inline-block;padding:14px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">
+                  Verify email →
+                </a>
+              </td>
+            </tr>
+          </table>
+          <p style="font-size:13px;color:#8888a8;margin:0 0 8px;">Or copy this link:</p>
+          <p style="font-size:12px;color:#7c6ee0;word-break:break-all;margin:0 0 32px;">
+            <a href="{verify_link}" style="color:#7c6ee0;">{verify_link}</a>
+          </p>
+          <hr style="border:none;border-top:1px solid #2a2a3e;margin:0 0 24px;">
+          <p style="font-size:12px;color:#55556a;margin:0;">
+            If you didn&apos;t create an OrbitSix account, you can ignore this email.<br><br>
+            <a href="{app_url}" style="color:#55556a;">orbitsix.com</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
 def _reset_email_html(reset_link: str, app_url: str) -> str:
     return f"""<!DOCTYPE html>
 <html>

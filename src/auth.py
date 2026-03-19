@@ -5,7 +5,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .email import send_password_reset
+from .email import send_password_reset, send_verification_email
 from .models import Person, Tenant, User, db
 
 bp = Blueprint("auth", __name__)
@@ -49,6 +49,10 @@ def signup():
     db.session.commit()
 
     access_token = create_access_token(identity=str(user.id))
+
+    # Send verification email (non-blocking — failure doesn't break signup)
+    _send_verification(user, current_app)
+
     return (
         jsonify(
             access_token=access_token,
@@ -75,6 +79,55 @@ def login():
 
     access_token = create_access_token(identity=str(user.id))
     return jsonify(access_token=access_token)
+
+
+def _send_verification(user, app):
+    """Generate a verification token and email it. Dev mode: print link."""
+    s = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+    token = s.dumps(user.email, salt="email-verify")
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    verify_link = f"{frontend_url}/auth/verify-email?token={token}"
+    sent = send_verification_email(user.email, verify_link)
+    if not sent:
+        print(f"[DEV] Email verification link: {verify_link}", flush=True)
+    return verify_link
+
+
+@bp.get("/api/auth/verify-email")
+def verify_email():
+    token = request.args.get("token", "")
+    if not token:
+        return jsonify(error="token is required"), 400
+
+    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+    try:
+        email = s.loads(token, salt="email-verify", max_age=86400)  # 24 hours
+    except SignatureExpired:
+        return jsonify(error="Verification link has expired. Please request a new one."), 400
+    except BadSignature:
+        return jsonify(error="Invalid verification link."), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify(error="User not found"), 404
+
+    user.email_verified = True
+    db.session.commit()
+    return jsonify(message="Email verified. You're all set!")
+
+
+@bp.post("/api/auth/resend-verification")
+@jwt_required()
+def resend_verification():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify(error="User not found"), 404
+    if user.email_verified:
+        return jsonify(message="Email is already verified.")
+
+    _send_verification(user, current_app)
+    return jsonify(message="Verification email sent.")
 
 
 @bp.post("/api/auth/change-password")
@@ -165,7 +218,7 @@ def me():
 
     self_person = Person.query.filter_by(user_id=user.id, is_self=True).first()
     return jsonify(
-        user={"id": user.id, "email": user.email, "role": user.role},
+        user={"id": user.id, "email": user.email, "role": user.role, "email_verified": user.email_verified},
         tenant={"id": user.tenant.id, "name": user.tenant.name},
         self_person_id=self_person.id if self_person else None,
     )

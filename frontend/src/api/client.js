@@ -28,6 +28,7 @@ export const api = {
   // Auth
   me: ()                             => req('GET',  '/me'),
   changePassword: (current, next)    => req('POST', '/auth/change-password', { current_password: current, new_password: next }),
+  resendVerification: ()             => req('POST', '/auth/resend-verification'),
 
   // People
   listPeople: ()           => req('GET',    '/people'),

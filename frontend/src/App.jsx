@@ -12,6 +12,7 @@ import OAuthCallback     from './pages/auth/OAuthCallback'
 import AccountConfirmed  from './pages/auth/AccountConfirmed'
 import ForgotPassword    from './pages/auth/ForgotPassword'
 import ResetPassword     from './pages/auth/ResetPassword'
+import VerifyEmail       from './pages/auth/VerifyEmail'
 import InstallExtension  from './pages/auth/InstallExtension'
 import Syncing           from './pages/auth/Syncing'
 
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/auth/confirmed"         element={<AccountConfirmed />} />
         <Route path="/auth/forgot-password"   element={<ForgotPassword />}   />
         <Route path="/auth/reset-password"    element={<ResetPassword />}    />
+        <Route path="/auth/verify-email"      element={<VerifyEmail />}      />
         <Route path="/auth/install-extension" element={<InstallExtension />} />
         <Route path="/auth/syncing"           element={<Syncing />}          />
 

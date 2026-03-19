@@ -127,6 +127,7 @@ def _find_or_create_user(profile: dict) -> User:
         email=email,
         password_hash=generate_password_hash(secrets.token_hex(32)),
         role="owner",
+        email_verified=True,  # OAuth providers verify email
     )
     db.session.add(user)
     db.session.flush()
