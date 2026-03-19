@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+instance/
+.env
+.env.*
+!.env.example
+frontend/node_modules/
+frontend/dist/
+orbit-extension/
+tests/
+*.md
+.git/
+.gitignore

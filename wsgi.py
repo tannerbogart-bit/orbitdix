@@ -5,4 +5,4 @@ app = create_app()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
-    app.run(debug=os.getenv("DEBUG", "False") == "True", host="127.0.0.1", port=port)
+    app.run(debug=os.getenv("DEBUG", "False") == "True", host="0.0.0.0", port=port)

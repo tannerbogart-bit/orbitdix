@@ -3,7 +3,9 @@ import sqlite3
 
 import sqlalchemy as sa
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+import pathlib
+
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from sqlalchemy.engine import Engine
@@ -76,5 +78,16 @@ def create_app():
     @app.get("/health")
     def health():
         return jsonify(status="ok")
+
+    # Serve built React frontend in production
+    frontend_dist = pathlib.Path(app.root_path).parent / "frontend" / "dist"
+    if frontend_dist.exists():
+        @app.route("/", defaults={"path": ""})
+        @app.route("/<path:path>")
+        def serve_frontend(path):
+            file_path = frontend_dist / path
+            if path and file_path.exists():
+                return send_from_directory(frontend_dist, path)
+            return send_from_directory(frontend_dist, "index.html")
 
     return app
