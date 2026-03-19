@@ -53,6 +53,45 @@ def list_people():
     return jsonify(people=[_person_dict(p) for p in people], total=total, page=page, per_page=per_page)
 
 
+@bp.post("/api/people")
+@jwt_required()
+def create_person():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify(error="User not found"), 404
+
+    # Contact cap for free plan
+    tenant = db.session.get(Tenant, user.tenant_id)
+    if not is_pro(tenant):
+        if contact_count(user.tenant_id) >= FREE_CONTACT_LIMIT:
+            return upgrade_error(
+                f"You've reached the {FREE_CONTACT_LIMIT} contact limit on the Free plan. "
+                "Upgrade to Pro for unlimited contacts."
+            )
+
+    data = request.get_json(silent=True) or {}
+    first_name = _clean(data.get("first_name"))
+    last_name  = _clean(data.get("last_name"))
+    if not first_name or not last_name:
+        return jsonify(error="first_name and last_name are required"), 400
+
+    person = Person(
+        tenant_id    = user.tenant_id,
+        first_name   = first_name,
+        last_name    = last_name,
+        email        = _clean(data.get("email")),
+        title        = _clean(data.get("title")),
+        company      = _clean(data.get("company")),
+        linkedin_url = _clean(data.get("linkedin_url")),
+        is_self      = False,
+    )
+    db.session.add(person)
+    log_activity(user, "connection_added", f"Added {first_name} {last_name}")
+    db.session.commit()
+    return jsonify(person=_person_dict(person)), 201
+
+
 @bp.put("/api/people/<int:person_id>")
 @jwt_required()
 def update_person(person_id):

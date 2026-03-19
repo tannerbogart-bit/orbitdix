@@ -1,29 +1,41 @@
 import { useState } from 'react'
+import { api } from '../api/client'
+import UpgradeModal from './UpgradeModal'
 
 export default function AddPersonModal({ onAdd, onClose }) {
-  const [form, setForm] = useState({ first_name: '', last_name: '', title: '', company: '' })
-  const [error, setError] = useState('')
+  const [form, setForm]         = useState({ first_name: '', last_name: '', title: '', company: '' })
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [upgradeMsg, setUpgradeMsg] = useState(null)
 
   function handleChange(e) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
     setError('')
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!form.first_name.trim() || !form.last_name.trim()) {
       setError('First and last name are required.')
       return
     }
-    onAdd({
-      ...form,
-      id: Date.now(), // temp client-side id; swap for API response id in real mode
-      avatar: (form.first_name[0] + form.last_name[0]).toUpperCase(),
-      mutual: 0,
-    })
-    onClose()
+    setLoading(true)
+    try {
+      const data = await api.createPerson(form)
+      onAdd(data.person)
+      onClose()
+    } catch (err) {
+      if (err.upgradeRequired) {
+        setUpgradeMsg(err.message)
+      } else {
+        setError(err.message || 'Failed to add person')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
+    <>
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal-box">
         {/* Header */}
@@ -33,13 +45,7 @@ export default function AddPersonModal({ onAdd, onClose }) {
           </h3>
           <button
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '4px',
-            }}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -77,42 +83,21 @@ export default function AddPersonModal({ onAdd, onClose }) {
           </div>
 
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-              Title
-            </label>
-            <input
-              className="input"
-              name="title"
-              placeholder="VP of Engineering"
-              value={form.title}
-              onChange={handleChange}
-            />
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Title</label>
+            <input className="input" name="title" placeholder="VP of Engineering" value={form.title} onChange={handleChange} />
           </div>
 
           <div>
-            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-              Company
-            </label>
-            <input
-              className="input"
-              name="company"
-              placeholder="Acme Corp"
-              value={form.company}
-              onChange={handleChange}
-            />
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Company</label>
+            <input className="input" name="company" placeholder="Acme Corp" value={form.company} onChange={handleChange} />
           </div>
 
           {error && (
-            <div
-              style={{
-                padding: '10px 14px',
-                background: 'rgba(248,113,113,0.08)',
-                border: '1px solid var(--danger)',
-                borderRadius: '8px',
-                fontSize: '13px',
-                color: 'var(--danger)',
-              }}
-            >
+            <div style={{
+              padding: '10px 14px', background: 'rgba(248,113,113,0.08)',
+              border: '1px solid var(--danger)', borderRadius: '8px',
+              fontSize: '13px', color: 'var(--danger)',
+            }}>
               {error}
             </div>
           )}
@@ -123,14 +108,18 @@ export default function AddPersonModal({ onAdd, onClose }) {
             className="btn-primary"
             style={{ flex: 1, justifyContent: 'center' }}
             onClick={handleSubmit}
+            disabled={loading}
           >
-            Add to network
+            {loading ? 'Adding…' : 'Add to network'}
           </button>
-          <button className="btn-ghost" onClick={onClose}>
-            Cancel
-          </button>
+          <button className="btn-ghost" onClick={onClose}>Cancel</button>
         </div>
       </div>
     </div>
+
+    {upgradeMsg && (
+      <UpgradeModal message={upgradeMsg} onClose={() => setUpgradeMsg(null)} />
+    )}
+    </>
   )
 }
