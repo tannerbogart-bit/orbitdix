@@ -40,7 +40,7 @@ export const api = {
 
   // Edges
   listEdges: ()            => req('GET',    '/edges'),
-  createEdge: (data)       => req('POST',   '/edges', data),
+  createEdge: (data)       => req('POST', '/edges', data),
   deleteEdge: (id)         => req('DELETE', `/edges/${id}`),
 
   // Path finding
