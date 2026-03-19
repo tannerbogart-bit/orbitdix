@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
+import UpgradeModal from './UpgradeModal'
 
 function buildMessage(target, path, edges = []) {
   if (!path || path.length < 2) {
@@ -50,8 +51,9 @@ function buildMessage(target, path, edges = []) {
 export default function DraftMessageModal({ path, target, edges = [], onClose }) {
   const [message, setMessage]   = useState(() => buildMessage(target, path, edges))
   const [sent, setSent]         = useState(false)
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiError, setAiError]   = useState(null)
+  const [aiLoading, setAiLoading]   = useState(false)
+  const [aiError, setAiError]       = useState(null)
+  const [upgradeMsg, setUpgradeMsg] = useState(null)
 
   async function handleAiDraft() {
     setAiError(null)
@@ -63,7 +65,11 @@ export default function DraftMessageModal({ path, target, edges = [], onClose })
       })
       setMessage(data.message)
     } catch (err) {
-      setAiError(err.message || 'AI drafting failed')
+      if (err.upgradeRequired) {
+        setUpgradeMsg(err.message)
+      } else {
+        setAiError(err.message || 'AI drafting failed')
+      }
     } finally {
       setAiLoading(false)
     }
@@ -76,6 +82,7 @@ export default function DraftMessageModal({ path, target, edges = [], onClose })
   }
 
   return (
+    <>
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal-box">
         {/* Header */}
@@ -252,5 +259,10 @@ export default function DraftMessageModal({ path, target, edges = [], onClose })
         )}
       </div>
     </div>
+
+      {upgradeMsg && (
+        <UpgradeModal message={upgradeMsg} onClose={() => setUpgradeMsg(null)} />
+      )}
+    </>
   )
 }

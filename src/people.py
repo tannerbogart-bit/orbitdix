@@ -11,6 +11,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from .db import db
 from .models import Edge, Person, Tenant, User
+from .plans import FREE_CONTACT_LIMIT, contact_count, is_pro, upgrade_error
 from .saved_paths import log_activity
 
 bp = Blueprint("people", __name__)
@@ -141,6 +142,19 @@ def bulk_import_people():
         return jsonify(error=f"Maximum {MAX_BATCH} people per request"), 400
 
     tenant_id = user.tenant_id
+
+    # Contact cap for free plan
+    tenant = db.session.get(Tenant, tenant_id)
+    if not is_pro(tenant):
+        current = contact_count(tenant_id)
+        remaining = FREE_CONTACT_LIMIT - current
+        if remaining <= 0:
+            return upgrade_error(
+                f"You've reached the {FREE_CONTACT_LIMIT} contact limit on the Free plan. "
+                "Upgrade to Pro for unlimited contacts."
+            )
+        # Trim the batch to fit within the limit
+        people_data = people_data[:remaining]
 
     # Pre-fetch existing people keyed by linkedin_url and email
     existing_by_url = {

@@ -7,7 +7,11 @@ POST /api/draft-message   — generate an intro message (requires auth)
 import os
 
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
+
+from .db import db
+from .models import Tenant, User
+from .plans import is_pro, upgrade_error
 
 bp = Blueprint("ai", __name__)
 
@@ -15,6 +19,12 @@ bp = Blueprint("ai", __name__)
 @bp.post("/api/draft-message")
 @jwt_required()
 def draft_message():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    tenant = db.session.get(Tenant, user.tenant_id) if user else None
+    if not is_pro(tenant):
+        return upgrade_error("AI-drafted messages are a Pro feature. Upgrade to use Claude-powered intros.")
+
     try:
         import anthropic
     except ImportError:

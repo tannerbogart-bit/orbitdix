@@ -16,7 +16,11 @@ async function req(method, path, body) {
   const res = await fetch(BASE + path, opts)
   if (res.status === 204) return null
   const json = await res.json()
-  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`)
+  if (!res.ok) {
+    const err = new Error(json.error || `HTTP ${res.status}`)
+    if (json.upgrade_required) err.upgradeRequired = true
+    throw err
+  }
   return json
 }
 

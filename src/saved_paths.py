@@ -14,7 +14,8 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from .db import db
-from .models import Activity, Person, SavedPath, User
+from .models import Activity, Person, SavedPath, Tenant, User
+from .plans import is_pro, upgrade_error
 
 bp = Blueprint("saved_paths", __name__)
 
@@ -72,6 +73,11 @@ def save_path():
     user = db.session.get(User, user_id)
     if user is None:
         return jsonify(error="User not found"), 404
+
+    # Plan enforcement
+    tenant = db.session.get(Tenant, user.tenant_id)
+    if not is_pro(tenant):
+        return upgrade_error("Saving paths is a Pro feature. Upgrade to save and revisit paths.")
 
     data = request.get_json(silent=True) or {}
     path_ids = data.get("path_ids")

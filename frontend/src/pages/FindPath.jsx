@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import DraftMessageModal from '../components/DraftMessageModal'
 import PathFlowGraph from '../components/PathFlowGraph'
+import UpgradeModal from '../components/UpgradeModal'
 import { useToast } from '../components/Toast'
 import { api } from '../api/client'
 
@@ -142,6 +143,7 @@ export default function FindPath() {
   const [pathPeople, setPathPeople] = useState(null)  // null = not searched yet, [] = no path
   const [searching, setSearching]   = useState(false)
   const [modal, setModal]           = useState(null)
+  const [upgradeMsg, setUpgradeMsg] = useState(null)
   const [step, setStep]             = useState('select')
   const [savedPaths, setSavedPaths] = useState(new Set())
 
@@ -180,6 +182,8 @@ export default function FindPath() {
       if (err.message === 'No path found') {
         setPathPeople([])
         setStep('result')
+      } else if (err.upgradeRequired) {
+        setUpgradeMsg(err.message)
       } else {
         toast?.add('Failed to find path', 'error')
       }
@@ -206,6 +210,8 @@ export default function FindPath() {
     } catch (err) {
       if (err.message === 'Path already saved') {
         setSavedPaths(prev => new Set([...prev, key]))
+      } else if (err.upgradeRequired) {
+        setUpgradeMsg(err.message)
       } else {
         toast?.add('Failed to save path', 'error')
       }
@@ -332,6 +338,10 @@ export default function FindPath() {
             toast?.add(`Message drafted for ${modal.target?.first_name} ${modal.target?.last_name}`, 'success')
           }}
         />
+      )}
+
+      {upgradeMsg && (
+        <UpgradeModal message={upgradeMsg} onClose={() => setUpgradeMsg(null)} />
       )}
     </div>
   )

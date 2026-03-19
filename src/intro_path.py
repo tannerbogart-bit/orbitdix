@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from .models import Edge, Person, Tenant, User, db
+from .plans import FREE_MONTHLY_PATH_LIMIT, is_pro, monthly_paths_used, upgrade_error
 from .saved_paths import log_activity
 
 bp = Blueprint("intro_path", __name__)
@@ -18,6 +19,17 @@ def intro_path():
 
     if to_person_id is None:
         return jsonify(error="to_person_id is required"), 400
+
+    # Plan enforcement
+    user = db.session.get(User, user_id)
+    tenant = db.session.get(Tenant, user.tenant_id) if user else None
+    if not is_pro(tenant):
+        used = monthly_paths_used(user.tenant_id)
+        if used >= FREE_MONTHLY_PATH_LIMIT:
+            return upgrade_error(
+                f"You've used all {FREE_MONTHLY_PATH_LIMIT} free path searches this month. "
+                "Upgrade to Pro for unlimited searches."
+            )
 
     # Resolve current user's self person
     self_person = Person.query.filter_by(user_id=user_id, is_self=True).first()
