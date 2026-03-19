@@ -126,6 +126,32 @@ def stripe_webhook():
     return jsonify(received=True)
 
 
+@bp.post("/api/billing/portal")
+@jwt_required()
+def billing_portal():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify(error="User not found"), 404
+
+    tenant = db.session.get(Tenant, user.tenant_id)
+    if not tenant or not tenant.stripe_customer_id:
+        return jsonify(error="No Stripe customer found. Subscribe first."), 400
+
+    if not stripe.api_key:
+        return jsonify(error="Stripe not configured"), 500
+
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=tenant.stripe_customer_id,
+            return_url=f"{frontend_url}/dashboard",
+        )
+        return jsonify(url=session.url)
+    except stripe.StripeError as e:
+        return jsonify(error=str(e)), 502
+
+
 @bp.get("/api/billing/plan")
 @jwt_required()
 def get_plan():

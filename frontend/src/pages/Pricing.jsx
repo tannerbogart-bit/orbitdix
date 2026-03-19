@@ -40,25 +40,7 @@ const PLANS = [
     cta:      'Start Pro',
     ctaStyle: 'primary',
   },
-  {
-    id:       'team',
-    name:     'Team',
-    price:    '$49',
-    period:   'per month',
-    tagline:  'For teams that grow together',
-    accent:   false,
-    features: [
-      'Everything in Pro',
-      'Up to 5 team seats',
-      'Shared connection pool',
-      'Team analytics dashboard',
-      'Assign outreach targets',
-      'Shared message templates',
-      'Dedicated onboarding',
-    ],
-    cta:      'Start Team',
-    ctaStyle: 'ghost',
-  },
+  // Team plan hidden until features are built
 ]
 
 function PlanCard({ plan, onSelect, loading }) {

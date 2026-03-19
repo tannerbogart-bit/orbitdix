@@ -172,12 +172,21 @@ export default function SignIn() {
         </button>
       </form>
 
+      <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)', marginTop: '12px' }}>
+        <span
+          style={{ color: 'var(--accent)', cursor: 'pointer' }}
+          onClick={() => navigate('/auth/forgot-password')}
+        >
+          Forgot password?
+        </span>
+      </p>
+
       <p
         style={{
           textAlign:  'center',
           fontSize:   '13px',
           color:      'var(--text-muted)',
-          marginTop:  '20px',
+          marginTop:  '8px',
         }}
       >
         Don&apos;t have an account?{' '}

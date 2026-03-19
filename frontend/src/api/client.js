@@ -51,6 +51,9 @@ export const api = {
   // Stats
   recordMessageDrafted: () => req('POST', '/stats/message-drafted'),
 
+  // AI
+  draftMessage: (payload) => req('POST', '/draft-message', payload),
+
   // Billing
   getBillingPlan:  ()     => req('GET',  '/billing/plan'),
   createCheckout:  (plan) => req('POST', '/checkout', {
@@ -58,4 +61,5 @@ export const api = {
     success_url: `${window.location.origin}/pricing/success`,
     cancel_url:  `${window.location.origin}/pricing`,
   }),
+  manageBilling: () => req('POST', '/billing/portal'),
 }

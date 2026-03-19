@@ -48,8 +48,26 @@ function buildMessage(target, path, edges = []) {
 }
 
 export default function DraftMessageModal({ path, target, edges = [], onClose }) {
-  const [message, setMessage] = useState(() => buildMessage(target, path, edges))
-  const [sent, setSent] = useState(false)
+  const [message, setMessage]   = useState(() => buildMessage(target, path, edges))
+  const [sent, setSent]         = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError]   = useState(null)
+
+  async function handleAiDraft() {
+    setAiError(null)
+    setAiLoading(true)
+    try {
+      const data = await api.draftMessage({
+        path:   path.map(p => ({ first_name: p.first_name, last_name: p.last_name })),
+        target: { first_name: target?.first_name, last_name: target?.last_name },
+      })
+      setMessage(data.message)
+    } catch (err) {
+      setAiError(err.message || 'AI drafting failed')
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   function handleSend() {
     setSent(true)
@@ -130,6 +148,39 @@ export default function DraftMessageModal({ path, target, edges = [], onClose })
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* AI regenerate */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Message
+          </div>
+          <button
+            onClick={handleAiDraft}
+            disabled={aiLoading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'var(--accent-dim)', border: '1px solid var(--accent)',
+              borderRadius: '6px', color: 'var(--accent)',
+              fontSize: '12px', fontWeight: 600, padding: '4px 10px',
+              cursor: aiLoading ? 'default' : 'pointer', opacity: aiLoading ? 0.6 : 1,
+              fontFamily: 'DM Sans, sans-serif',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1v3M8 12v3M1 8h3M12 8h3M3.5 3.5l2 2M10.5 10.5l2 2M3.5 12.5l2-2M10.5 5.5l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            {aiLoading ? 'Drafting…' : 'Draft with AI'}
+          </button>
+        </div>
+        {aiError && (
+          <div style={{
+            fontSize: '12px', color: 'var(--danger)',
+            background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)',
+            borderRadius: '6px', padding: '8px 10px', marginBottom: '8px',
+          }}>
+            {aiError}
           </div>
         )}
 

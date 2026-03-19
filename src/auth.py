@@ -1,5 +1,8 @@
-from flask import Blueprint, jsonify, request
+import os
+
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .models import Person, Tenant, User, db
@@ -71,6 +74,54 @@ def login():
 
     access_token = create_access_token(identity=str(user.id))
     return jsonify(access_token=access_token)
+
+
+@bp.post("/api/auth/forgot-password")
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+    email = data.get("email", "").strip().lower()
+    if not email:
+        return jsonify(error="email is required"), 400
+
+    user = User.query.filter_by(email=email).first()
+    resp = {"message": "If that email is registered, you'll receive a reset link."}
+
+    if user:
+        s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+        token = s.dumps(email, salt="password-reset")
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        reset_link = f"{frontend_url}/auth/reset-password?token={token}"
+        print(f"[DEV] Password reset link: {reset_link}", flush=True)
+        if current_app.debug:
+            resp["dev_reset_link"] = reset_link
+
+    return jsonify(**resp)
+
+
+@bp.post("/api/auth/reset-password")
+def reset_password():
+    data = request.get_json(silent=True) or {}
+    token = data.get("token")
+    new_password = data.get("new_password")
+
+    if not token or not new_password:
+        return jsonify(error="token and new_password are required"), 400
+
+    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+    try:
+        email = s.loads(token, salt="password-reset", max_age=3600)
+    except SignatureExpired:
+        return jsonify(error="Reset link has expired. Please request a new one."), 400
+    except BadSignature:
+        return jsonify(error="Invalid reset link."), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify(error="User not found"), 404
+
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    return jsonify(message="Password updated. You can now sign in.")
 
 
 @bp.get("/api/me")

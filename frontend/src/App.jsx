@@ -10,6 +10,8 @@ import SignIn            from './pages/auth/SignIn'
 import LinkedInOAuth     from './pages/auth/LinkedInOAuth'
 import OAuthCallback     from './pages/auth/OAuthCallback'
 import AccountConfirmed  from './pages/auth/AccountConfirmed'
+import ForgotPassword    from './pages/auth/ForgotPassword'
+import ResetPassword     from './pages/auth/ResetPassword'
 import InstallExtension  from './pages/auth/InstallExtension'
 import Syncing           from './pages/auth/Syncing'
 
@@ -33,10 +35,12 @@ export default function App() {
         <Route path="/pricing/success"        element={<PricingSuccess />}  />
 
         {/* Auth / onboarding */}
-        <Route path="/auth/signin"            element={<SignIn />}           />
+        <Route path="/auth/signin"              element={<SignIn />}            />
         <Route path="/auth/linkedin"          element={<LinkedInOAuth />}    />
-        <Route path="/auth/oauth-callback"   element={<OAuthCallback />}    />
+        <Route path="/auth/oauth-callback"    element={<OAuthCallback />}    />
         <Route path="/auth/confirmed"         element={<AccountConfirmed />} />
+        <Route path="/auth/forgot-password"   element={<ForgotPassword />}   />
+        <Route path="/auth/reset-password"    element={<ResetPassword />}    />
         <Route path="/auth/install-extension" element={<InstallExtension />} />
         <Route path="/auth/syncing"           element={<Syncing />}          />
 

@@ -194,6 +194,19 @@ export default function Dashboard() {
             </svg>
             View Network
           </button>
+          <button
+            className="btn-ghost"
+            onClick={async () => {
+              try {
+                const data = await api.manageBilling()
+                window.location.href = data.url
+              } catch (err) {
+                navigate('/pricing')
+              }
+            }}
+          >
+            Manage billing
+          </button>
         </div>
       </div>
 
