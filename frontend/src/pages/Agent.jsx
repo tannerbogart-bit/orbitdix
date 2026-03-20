@@ -1,50 +1,47 @@
 import { useState, useEffect, useRef } from 'react'
 import { api } from '../api/client'
 
-// ── Tool label helper ──────────────────────────────────────────────────────
 const TOOL_LABELS = {
-  search_network:       'Searching your network…',
-  find_path:            'Mapping connection path…',
-  get_network_overview: 'Analyzing your network…',
-  get_target_accounts:  'Loading target accounts…',
-  add_target_account:   'Saving target account…',
-  remove_target_account:'Removing target account…',
+  search_network:        'Searching your network…',
+  find_path:             'Mapping connection path…',
+  get_network_overview:  'Analyzing your network…',
+  analyze_network_gaps:  'Running gap analysis…',
+  get_target_accounts:   'Loading target accounts…',
+  add_target_account:    'Saving target account…',
+  remove_target_account: 'Removing target account…',
 }
 
-// ── Starter prompts ────────────────────────────────────────────────────────
-const STARTERS = [
-  'Who in my network works at Salesforce?',
-  'Find a path to someone at OpenAI',
-  'What companies are well represented in my network?',
-  'Analyze my network for opportunities with my target accounts',
-  'Who should I reach out to first based on my business goals?',
-]
+const SUGGESTION_ICONS = {
+  gap:      '⚡',
+  analysis: '🔍',
+  recommend:'💡',
+  target:   '🎯',
+}
 
 export default function Agent() {
-  // Chat state
-  const [messages, setMessages] = useState([])         // [{role, content}]
-  const [input, setInput] = useState('')
-  const [streaming, setStreaming] = useState(false)
-  const [activeTools, setActiveTools] = useState([])   // currently running tools
+  const [messages, setMessages]           = useState([])
+  const [input, setInput]                 = useState('')
+  const [streaming, setStreaming]         = useState(false)
+  const [activeTools, setActiveTools]     = useState([])
   const [upgradeRequired, setUpgradeRequired] = useState(false)
-  const messagesEndRef = useRef(null)
-  const abortRef = useRef(null)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
 
-  // Context state
-  const [context, setContext] = useState({ my_company: '', my_role: '', what_i_sell: '', icp_description: '' })
+  const [context, setContext]     = useState({ my_company: '', my_role: '', what_i_sell: '', icp_description: '' })
   const [contextSaving, setContextSaving] = useState(false)
-  const [contextSaved, setContextSaved] = useState(false)
+  const [contextSaved, setContextSaved]   = useState(false)
 
-  // Target accounts
-  const [targets, setTargets] = useState([])
+  const [targets, setTargets]     = useState([])
   const [newCompany, setNewCompany] = useState('')
   const [addingTarget, setAddingTarget] = useState(false)
 
-  // UI
+  const [suggestions, setSuggestions] = useState([])
   const [contextOpen, setContextOpen] = useState(true)
+  const [clearing, setClearing]       = useState(false)
+
+  const messagesEndRef = useRef(null)
+  const abortRef       = useRef(null)
 
   useEffect(() => {
-    // Load business context
     api.getAgentContext().then(data => {
       if (data.context) setContext({
         my_company:      data.context.my_company      || '',
@@ -54,8 +51,9 @@ export default function Agent() {
       })
     }).catch(() => {})
 
-    // Load target accounts
     loadTargets()
+    loadHistory()
+    loadSuggestions()
   }, [])
 
   useEffect(() => {
@@ -64,6 +62,19 @@ export default function Agent() {
 
   function loadTargets() {
     api.getTargetAccounts().then(data => setTargets(data.targets || [])).catch(() => {})
+  }
+
+  function loadHistory() {
+    api.getAgentHistory().then(data => {
+      if (data.messages && data.messages.length > 0) {
+        setMessages(data.messages)
+      }
+      setHistoryLoaded(true)
+    }).catch(() => { setHistoryLoaded(true) })
+  }
+
+  function loadSuggestions() {
+    api.getAgentSuggestions().then(data => setSuggestions(data.suggestions || [])).catch(() => {})
   }
 
   async function saveContext() {
@@ -84,6 +95,7 @@ export default function Agent() {
       await api.addTargetAccount({ company_name: newCompany.trim() })
       setNewCompany('')
       loadTargets()
+      loadSuggestions() // refresh suggestions after adding target
     } catch {}
     setAddingTarget(false)
   }
@@ -92,7 +104,19 @@ export default function Agent() {
     try {
       await api.deleteTargetAccount(id)
       setTargets(prev => prev.filter(t => t.id !== id))
+      loadSuggestions()
     } catch {}
+  }
+
+  async function clearHistory() {
+    if (!window.confirm('Clear conversation history? This cannot be undone.')) return
+    setClearing(true)
+    try {
+      await api.clearAgentHistory()
+      setMessages([])
+      loadSuggestions()
+    } catch {}
+    setClearing(false)
   }
 
   async function sendMessage(text) {
@@ -104,7 +128,6 @@ export default function Agent() {
     setStreaming(true)
     setActiveTools([])
 
-    // Placeholder for assistant response being built
     let assistantText = ''
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
@@ -119,7 +142,8 @@ export default function Agent() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ messages: nextMessages }),
+        // Send only the new user message — backend merges with persisted history
+        body: JSON.stringify({ messages: [userMsg] }),
         signal: controller.signal,
       })
 
@@ -127,14 +151,14 @@ export default function Agent() {
         const err = await response.json().catch(() => ({}))
         if (err.upgrade_required) {
           setUpgradeRequired(true)
-          setMessages(prev => prev.slice(0, -1)) // remove placeholder
+          setMessages(prev => prev.slice(0, -1))
           setStreaming(false)
           return
         }
         throw new Error(err.error || `HTTP ${response.status}`)
       }
 
-      const reader = response.body.getReader()
+      const reader  = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
 
@@ -171,12 +195,10 @@ export default function Agent() {
         }
       }
     } catch (err) {
-      if (err.name === 'AbortError') {
-        // User cancelled
-      } else {
+      if (err.name !== 'AbortError') {
         setMessages(prev => {
           const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: `Sorry, something went wrong. Please try again.` }
+          updated[updated.length - 1] = { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }
           return updated
         })
       }
@@ -203,31 +225,15 @@ export default function Agent() {
   if (upgradeRequired) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-        <div style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: '16px',
-          padding: '48px',
-          maxWidth: '480px',
-          textAlign: 'center',
-        }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '48px', maxWidth: '480px', textAlign: 'center' }}>
           <div style={{ fontSize: '40px', marginBottom: '16px' }}>✦</div>
           <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
             AI Agent is a Pro feature
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6, marginBottom: '28px' }}>
-            Upgrade to Pro to unlock your network intelligence assistant — connection recommendations, target account tracking, and AI-drafted intro messages.
+            Upgrade to Pro to unlock your network intelligence assistant — gap analysis, connection recommendations, and AI-drafted intro messages.
           </p>
-          <a href="/pricing" style={{
-            display: 'inline-block',
-            padding: '12px 28px',
-            background: 'var(--accent)',
-            color: 'white',
-            borderRadius: '8px',
-            fontWeight: 600,
-            fontSize: '14px',
-            textDecoration: 'none',
-          }}>
+          <a href="/pricing" style={{ display: 'inline-block', padding: '12px 28px', background: 'var(--accent)', color: 'white', borderRadius: '8px', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>
             Upgrade to Pro
           </a>
         </div>
@@ -235,27 +241,16 @@ export default function Agent() {
     )
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const showEmptyState = historyLoaded && messages.length === 0
+
   return (
     <div style={{ flex: 1, display: 'flex', height: '100%', overflow: 'hidden' }}>
 
-      {/* Left panel */}
-      <div style={{
-        width: '280px',
-        minWidth: '280px',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        background: 'var(--bg-sidebar)',
-      }}>
+      {/* ── Left panel ─────────────────────────────────────────────────────── */}
+      <div style={{ width: '280px', minWidth: '280px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-sidebar)' }}>
         <div style={{ padding: '20px 18px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>
-            AI Agent
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Network intelligence assistant
-          </div>
+          <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>AI Agent</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Network intelligence assistant</div>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
@@ -264,39 +259,16 @@ export default function Agent() {
           <div style={{ marginBottom: '12px' }}>
             <button
               onClick={() => setContextOpen(o => !o)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 10px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                color: 'var(--text-primary)',
-                fontFamily: 'DM Sans, sans-serif',
-                fontWeight: 600,
-                fontSize: '12px',
-              }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '12px' }}
             >
               <span>Your Business Context</span>
-              <svg
-                width="12" height="12" viewBox="0 0 12 12" fill="none"
-                style={{ transform: contextOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
-              >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: contextOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
                 <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
 
             {contextOpen && (
-              <div style={{
-                marginTop: '8px',
-                padding: '12px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-              }}>
+              <div style={{ marginTop: '8px', padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '8px' }}>
                 {[
                   { key: 'my_role',         label: 'Your role',      placeholder: 'e.g. VP of Sales' },
                   { key: 'my_company',      label: 'Your company',   placeholder: 'e.g. Acme Corp' },
@@ -304,46 +276,20 @@ export default function Agent() {
                   { key: 'icp_description', label: 'Ideal customer', placeholder: 'e.g. Series B+ fintech startups' },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key} style={{ marginBottom: '8px' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px', fontFamily: 'DM Sans, sans-serif' }}>
-                      {label}
-                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px', fontFamily: 'DM Sans, sans-serif' }}>{label}</div>
                     <textarea
                       value={context[key]}
                       onChange={e => setContext(prev => ({ ...prev, [key]: e.target.value }))}
                       placeholder={placeholder}
                       rows={key === 'what_i_sell' || key === 'icp_description' ? 2 : 1}
-                      style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        background: 'var(--bg-input)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '6px',
-                        color: 'var(--text-primary)',
-                        fontSize: '12px',
-                        fontFamily: 'DM Sans, sans-serif',
-                        resize: 'none',
-                        boxSizing: 'border-box',
-                        lineHeight: 1.4,
-                      }}
+                      style={{ width: '100%', padding: '6px 8px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '12px', fontFamily: 'DM Sans, sans-serif', resize: 'none', boxSizing: 'border-box', lineHeight: 1.4 }}
                     />
                   </div>
                 ))}
                 <button
                   onClick={saveContext}
                   disabled={contextSaving}
-                  style={{
-                    width: '100%',
-                    padding: '7px',
-                    background: contextSaved ? '#2d7d4e' : 'var(--accent)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: contextSaving ? 'default' : 'pointer',
-                    fontFamily: 'DM Sans, sans-serif',
-                    transition: 'background 0.2s',
-                  }}
+                  style={{ width: '100%', padding: '7px', background: contextSaved ? '#2d7d4e' : 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: contextSaving ? 'default' : 'pointer', fontFamily: 'DM Sans, sans-serif', transition: 'background 0.2s' }}
                 >
                   {contextSaved ? 'Saved!' : contextSaving ? 'Saving…' : 'Save Context'}
                 </button>
@@ -353,13 +299,7 @@ export default function Agent() {
 
           {/* Target Accounts */}
           <div>
-            <div style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              fontFamily: 'DM Sans, sans-serif',
-              padding: '0 2px 6px',
-            }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif', padding: '0 2px 6px' }}>
               Target Accounts
             </div>
 
@@ -370,16 +310,7 @@ export default function Agent() {
             )}
 
             {targets.map(t => (
-              <div key={t.id} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 8px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '6px',
-                marginBottom: '4px',
-              }}>
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', marginBottom: '4px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {t.company_name}
@@ -390,19 +321,7 @@ export default function Agent() {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => removeTarget(t.id)}
-                  title="Remove"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)',
-                    padding: '2px',
-                    lineHeight: 1,
-                    flexShrink: 0,
-                  }}
-                >
+                <button onClick={() => removeTarget(t.id)} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', lineHeight: 1, flexShrink: 0 }}>
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
@@ -415,67 +334,39 @@ export default function Agent() {
                 value={newCompany}
                 onChange={e => setNewCompany(e.target.value)}
                 placeholder="Add company…"
-                style={{
-                  flex: 1,
-                  padding: '6px 8px',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                  fontFamily: 'DM Sans, sans-serif',
-                  minWidth: 0,
-                }}
+                style={{ flex: 1, padding: '6px 8px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '12px', fontFamily: 'DM Sans, sans-serif', minWidth: 0 }}
               />
-              <button
-                type="submit"
-                disabled={addingTarget || !newCompany.trim()}
-                style={{
-                  padding: '6px 10px',
-                  background: 'var(--accent)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: addingTarget || !newCompany.trim() ? 'default' : 'pointer',
-                  opacity: !newCompany.trim() ? 0.5 : 1,
-                  fontFamily: 'DM Sans, sans-serif',
-                  flexShrink: 0,
-                }}
-              >
+              <button type="submit" disabled={addingTarget || !newCompany.trim()} style={{ padding: '6px 10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: addingTarget || !newCompany.trim() ? 'default' : 'pointer', opacity: !newCompany.trim() ? 0.5 : 1, fontFamily: 'DM Sans, sans-serif', flexShrink: 0 }}>
                 +
               </button>
             </form>
           </div>
+
+          {/* Clear history */}
+          {messages.length > 0 && (
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
+              <button
+                onClick={clearHistory}
+                disabled={clearing}
+                style={{ width: '100%', padding: '7px', background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: '6px', fontSize: '12px', color: 'var(--text-muted)', cursor: clearing ? 'default' : 'pointer', fontFamily: 'DM Sans, sans-serif' }}
+              >
+                {clearing ? 'Clearing…' : 'Clear conversation'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Chat panel */}
+      {/* ── Chat panel ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
-        {/* Messages */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
 
-          {messages.length === 0 && (
+          {/* Empty state with proactive suggestion chips */}
+          {showEmptyState && (
             <div style={{ maxWidth: '560px', margin: '0 auto' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                marginBottom: '32px',
-              }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  background: 'var(--accent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 16px var(--accent-glow)',
-                  flexShrink: 0,
-                }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px var(--accent-glow)', flexShrink: 0 }}>
                   <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
                     <circle cx="9" cy="9" r="3" fill="white" />
                     <circle cx="9" cy="9" r="7" stroke="white" strokeWidth="1.5" fill="none" />
@@ -486,34 +377,49 @@ export default function Agent() {
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '18px', color: 'var(--text-primary)' }}>
-                    Network Agent
-                  </div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'DM Sans, sans-serif' }}>
-                    Your strategic networking assistant
-                  </div>
+                  <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '18px', color: 'var(--text-primary)' }}>Network Agent</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'DM Sans, sans-serif' }}>Your strategic networking assistant</div>
                 </div>
               </div>
 
+              {/* Proactive suggestion chips */}
+              {suggestions.length > 0 && (
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    Suggested for you
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => sendMessage(s.prompt)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: '20px', color: 'var(--accent)', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer', transition: 'background 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = 'white' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
+                      >
+                        <span>{SUGGESTION_ICONS[s.icon] || '→'}</span>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Starter prompts grid */}
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                Or try one of these
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {STARTERS.map((s, i) => (
+                {[
+                  'Who in my network works at Salesforce?',
+                  'Find a path to someone at OpenAI',
+                  'What companies are well represented in my network?',
+                  'Who should I reach out to first based on my business goals?',
+                ].map((s, i) => (
                   <button
                     key={i}
                     onClick={() => sendMessage(s)}
-                    style={{
-                      padding: '12px 14px',
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '10px',
-                      color: 'var(--text-secondary)',
-                      fontSize: '13px',
-                      fontFamily: 'DM Sans, sans-serif',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.15s, color 0.15s',
-                      lineHeight: 1.4,
-                      gridColumn: i === 4 ? '1 / -1' : 'auto',
-                    }}
+                    style={{ padding: '12px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.15s, color 0.15s', lineHeight: 1.4 }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-primary)' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
                   >
@@ -524,51 +430,21 @@ export default function Agent() {
             </div>
           )}
 
+          {/* Messages */}
           {messages.map((msg, i) => (
             <div
               key={i}
-              style={{
-                display: 'flex',
-                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                marginBottom: '16px',
-                maxWidth: '720px',
-                margin: '0 auto 16px',
-              }}
+              style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '720px', margin: '0 auto 16px' }}
             >
               {msg.role === 'assistant' && (
-                <div style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '8px',
-                  background: 'var(--accent-dim)',
-                  border: '1px solid var(--accent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  marginRight: '10px',
-                  marginTop: '2px',
-                }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: '10px', marginTop: '2px' }}>
                   <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
                     <circle cx="9" cy="9" r="3" fill="var(--accent)" />
                     <circle cx="9" cy="9" r="7" stroke="var(--accent)" strokeWidth="1.5" fill="none" />
                   </svg>
                 </div>
               )}
-
-              <div style={{
-                maxWidth: '80%',
-                padding: msg.role === 'user' ? '10px 14px' : '12px 16px',
-                background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-card)',
-                border: msg.role === 'user' ? 'none' : '1px solid var(--border)',
-                borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
-                color: msg.role === 'user' ? 'white' : 'var(--text-primary)',
-                fontSize: '14px',
-                fontFamily: 'DM Sans, sans-serif',
-                lineHeight: 1.6,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}>
+              <div style={{ maxWidth: '80%', padding: msg.role === 'user' ? '10px 14px' : '12px 16px', background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-card)', border: msg.role === 'user' ? 'none' : '1px solid var(--border)', borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '4px 14px 14px 14px', color: msg.role === 'user' ? 'white' : 'var(--text-primary)', fontSize: '14px', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {msg.content}
                 {msg.role === 'assistant' && i === messages.length - 1 && streaming && !msg.content && (
                   <span style={{ opacity: 0.5 }}>Thinking…</span>
@@ -581,25 +457,8 @@ export default function Agent() {
           {activeTools.length > 0 && (
             <div style={{ maxWidth: '720px', margin: '0 auto 8px', paddingLeft: '38px' }}>
               {activeTools.map((tool, i) => (
-                <div key={i} style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 10px',
-                  background: 'var(--accent-dim)',
-                  border: '1px solid var(--accent)',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  color: 'var(--accent)',
-                  fontFamily: 'DM Sans, sans-serif',
-                  marginRight: '6px',
-                  marginBottom: '4px',
-                }}>
-                  <div style={{
-                    width: '6px', height: '6px', borderRadius: '50%',
-                    background: 'var(--accent)',
-                    animation: 'pulse 1s infinite',
-                  }} />
+                <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: '20px', fontSize: '12px', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', marginRight: '6px', marginBottom: '4px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 1s infinite' }} />
                   {TOOL_LABELS[tool] || tool}
                 </div>
               ))}
@@ -610,82 +469,27 @@ export default function Agent() {
         </div>
 
         {/* Input area */}
-        <div style={{
-          padding: '16px 32px 24px',
-          borderTop: '1px solid var(--border-subtle)',
-          background: 'var(--bg-sidebar)',
-        }}>
-          <div style={{
-            display: 'flex',
-            gap: '10px',
-            maxWidth: '720px',
-            margin: '0 auto',
-            alignItems: 'flex-end',
-          }}>
+        <div style={{ padding: '16px 32px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-sidebar)' }}>
+          <div style={{ display: 'flex', gap: '10px', maxWidth: '720px', margin: '0 auto', alignItems: 'flex-end' }}>
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about your network, find paths, manage targets…"
+              placeholder="Ask about your network, find paths, run gap analysis…"
               rows={1}
               disabled={streaming}
-              style={{
-                flex: 1,
-                padding: '12px 14px',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                fontFamily: 'DM Sans, sans-serif',
-                resize: 'none',
-                lineHeight: 1.5,
-                maxHeight: '120px',
-                overflowY: 'auto',
-                opacity: streaming ? 0.7 : 1,
-              }}
+              style={{ flex: 1, padding: '12px 14px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-primary)', fontSize: '14px', fontFamily: 'DM Sans, sans-serif', resize: 'none', lineHeight: 1.5, maxHeight: '120px', overflowY: 'auto', opacity: streaming ? 0.7 : 1 }}
               onInput={e => {
                 e.target.style.height = 'auto'
                 e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
               }}
             />
-
             {streaming ? (
-              <button
-                onClick={stopStreaming}
-                style={{
-                  padding: '10px 16px',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '10px',
-                  color: 'var(--text-secondary)',
-                  fontSize: '13px',
-                  fontFamily: 'DM Sans, sans-serif',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}
-              >
+              <button onClick={stopStreaming} style={{ padding: '10px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 Stop
               </button>
             ) : (
-              <button
-                onClick={() => sendMessage(input)}
-                disabled={!input.trim()}
-                style={{
-                  padding: '10px 20px',
-                  background: input.trim() ? 'var(--accent)' : 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '10px',
-                  color: input.trim() ? 'white' : 'var(--text-muted)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  fontFamily: 'DM Sans, sans-serif',
-                  cursor: input.trim() ? 'pointer' : 'default',
-                  flexShrink: 0,
-                  transition: 'background 0.15s, color 0.15s',
-                }}
-              >
+              <button onClick={() => sendMessage(input)} disabled={!input.trim()} style={{ padding: '10px 20px', background: input.trim() ? 'var(--accent)' : 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: input.trim() ? 'white' : 'var(--text-muted)', fontSize: '13px', fontWeight: 600, fontFamily: 'DM Sans, sans-serif', cursor: input.trim() ? 'pointer' : 'default', flexShrink: 0, transition: 'background 0.15s, color 0.15s' }}>
                 Send
               </button>
             )}

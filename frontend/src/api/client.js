@@ -61,11 +61,14 @@ export const api = {
   draftMessage: (payload) => req('POST', '/draft-message', payload),
 
   // Agent
-  getAgentContext:    ()       => req('GET',    '/agent/context'),
-  saveAgentContext:   (data)   => req('PUT',    '/agent/context', data),
-  getTargetAccounts:  ()       => req('GET',    '/agent/targets'),
-  addTargetAccount:   (data)   => req('POST',   '/agent/targets', data),
-  deleteTargetAccount:(id)     => req('DELETE', `/agent/targets/${id}`),
+  getAgentContext:     ()     => req('GET',    '/agent/context'),
+  saveAgentContext:    (data) => req('PUT',    '/agent/context', data),
+  getTargetAccounts:   ()     => req('GET',    '/agent/targets'),
+  addTargetAccount:    (data) => req('POST',   '/agent/targets', data),
+  deleteTargetAccount: (id)   => req('DELETE', `/agent/targets/${id}`),
+  getAgentHistory:     ()     => req('GET',    '/agent/history'),
+  clearAgentHistory:   ()     => req('DELETE', '/agent/history'),
+  getAgentSuggestions: ()     => req('GET',    '/agent/suggestions'),
 
   // Billing
   getBillingPlan:  ()     => req('GET',  '/billing/plan'),

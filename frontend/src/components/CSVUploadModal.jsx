@@ -29,9 +29,21 @@ function parseCSV(text) {
     return fields
   }
 
-  const headers = parseLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g, '_'))
+  // LinkedIn CSVs start with a "Note:" preamble line — skip any lines before
+  // the real header row (identified by containing "first name" or "last name").
+  const HEADER_KEYWORDS = ['first name', 'last name', 'firstname', 'lastname']
+  let headerIdx = 0
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const lower = lines[i].toLowerCase()
+    if (HEADER_KEYWORDS.some(k => lower.includes(k))) {
+      headerIdx = i
+      break
+    }
+  }
 
-  return lines.slice(1).filter(l => l.trim()).map(line => {
+  const headers = parseLine(lines[headerIdx]).map(h => h.toLowerCase().replace(/\s+/g, '_'))
+
+  return lines.slice(headerIdx + 1).filter(l => l.trim()).map(line => {
     const values = parseLine(line)
     const row = {}
     headers.forEach((h, i) => { row[h] = values[i] || '' })
@@ -43,20 +55,23 @@ function parseCSV(text) {
 // Supports LinkedIn export format and a generic format.
 function rowToPerson(row) {
   // LinkedIn format: First Name, Last Name, Email Address, Company, Position
-  const firstName = row['first_name'] || row['firstname'] || ''
-  const lastName  = row['last_name']  || row['lastname']  || ''
-  const email     = row['email_address'] || row['email'] || ''
-  const company   = row['company'] || row['organization'] || ''
-  const title     = row['position'] || row['title'] || row['job_title'] || ''
+  const firstName   = row['first_name'] || row['firstname'] || ''
+  const lastName    = row['last_name']  || row['lastname']  || ''
+  const email       = row['email_address'] || row['email'] || ''
+  const company     = row['company'] || row['organization'] || ''
+  const title       = row['position'] || row['title'] || row['job_title'] || ''
+  // LinkedIn exports a "URL" column with the profile URL
+  const linkedinUrl = row['url'] || row['linkedin_url'] || row['linkedin'] || ''
 
   if (!firstName && !lastName && !email) return null
 
   return {
-    first_name: firstName,
-    last_name:  lastName,
-    email:      email || undefined,
-    company:    company || undefined,
-    title:      title || undefined,
+    first_name:   firstName,
+    last_name:    lastName,
+    email:        email || undefined,
+    company:      company || undefined,
+    title:        title || undefined,
+    linkedin_url: linkedinUrl || undefined,
   }
 }
 
