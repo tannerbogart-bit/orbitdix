@@ -6,6 +6,8 @@ POST /api/people/bulk  — bulk import up to 200 people
 GET  /api/stats        — connection count + basic stats for dashboard
 """
 
+from datetime import datetime, timezone
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
@@ -144,6 +146,7 @@ def get_stats():
     tenant = db.session.get(Tenant, user.tenant_id)
     plan   = tenant.plan if tenant else "free"
     pro    = is_pro(tenant)
+    last_synced = tenant.last_synced_at.isoformat() if tenant and tenant.last_synced_at else None
     return jsonify(
         connections=total,
         paths_found=tenant.paths_found if tenant else 0,
@@ -153,6 +156,7 @@ def get_stats():
         paths_this_month=monthly_paths_used(user.tenant_id),
         paths_limit=None if pro else FREE_MONTHLY_PATH_LIMIT,
         contacts_limit=None if pro else FREE_CONTACT_LIMIT,
+        last_synced_at=last_synced,
     )
 
 
@@ -285,6 +289,8 @@ def bulk_import_people():
         db.session.add_all(new_people)
     if imported > 0:
         log_activity(user, "person_imported", f"Imported {imported} contact{'s' if imported != 1 else ''}")
+        # Stamp last_synced_at on the tenant whenever new contacts are imported
+        tenant.last_synced_at = datetime.now(timezone.utc)
     db.session.commit()
 
     return jsonify(imported=imported, updated=updated, skipped=skipped), 201

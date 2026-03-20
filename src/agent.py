@@ -466,6 +466,23 @@ def _build_system_prompt(user_id: int, tenant_id: int) -> str:
             lines.append(f"- Target accounts ({len(targets)}): {target_str}")
         else:
             lines.append("- No target accounts saved yet")
+
+        # Sync freshness
+        tenant_obj = Tenant.query.get(tenant_id)
+        if tenant_obj and tenant_obj.last_synced_at:
+            from datetime import datetime, timezone
+            delta = datetime.now(timezone.utc) - tenant_obj.last_synced_at.replace(tzinfo=timezone.utc)
+            days_ago = delta.days
+            if days_ago == 0:
+                lines.append("- Network data synced today (fresh)")
+            elif days_ago <= 7:
+                lines.append(f"- Network data last synced {days_ago} day{'s' if days_ago != 1 else ''} ago (recent)")
+            elif days_ago <= 30:
+                lines.append(f"- Network data last synced {days_ago} days ago (may have minor gaps)")
+            else:
+                lines.append(f"- Network data last synced {days_ago} days ago — mention this could be stale when relevant")
+        else:
+            lines.append("- Network data has never been synced — mention to the user that importing their LinkedIn connections will unlock full functionality")
     except Exception:
         pass
 

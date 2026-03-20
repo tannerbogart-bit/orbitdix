@@ -15,6 +15,7 @@ class Tenant(db.Model):
     subscription_status    = db.Column(db.String(50),  nullable=False, default='active')  # active | past_due | canceled
     stripe_customer_id     = db.Column(db.String(255), nullable=True)
     stripe_subscription_id = db.Column(db.String(255), nullable=True)
+    last_synced_at   = db.Column(db.DateTime, nullable=True)
     created_at       = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     users   = db.relationship("User",   back_populates="tenant", lazy=True, cascade="all, delete-orphan", passive_deletes=True)

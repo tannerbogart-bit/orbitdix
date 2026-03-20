@@ -18,6 +18,7 @@ const btnReset     = document.getElementById('btn-reset');
 const stateIdle    = document.getElementById('state-idle');
 const stateRunning = document.getElementById('state-running');
 const stateDone    = document.getElementById('state-done');
+const syncStatus   = document.getElementById('sync-status');
 
 const progressCount = document.getElementById('progress-count');
 const progressFill  = document.getElementById('progress-fill');
@@ -40,11 +41,31 @@ function setProgress(current, total, statusMsg) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+function formatSyncTime(ts) {
+  if (!ts) return 'Never synced';
+  const diffMs  = Date.now() - ts;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffH   = Math.floor(diffMs / 3600000);
+  const diffD   = Math.floor(diffMs / 86400000);
+  if (diffMin < 2)  return 'Synced just now';
+  if (diffMin < 60) return `Synced ${diffMin}m ago`;
+  if (diffH   < 24) return `Synced ${diffH}h ago`;
+  return `Synced ${diffD}d ago`;
+}
+
+function updateSyncStatus(ts) {
+  if (!syncStatus) return;
+  syncStatus.textContent = formatSyncTime(ts);
+  syncStatus.style.display = 'block';
+  syncStatus.style.cssText = 'display:block; font-size:11px; color:#888; margin-bottom:8px;';
+}
+
 async function init() {
-  const { orbitToken, orbitEmail } = await chrome.storage.local.get(['orbitToken', 'orbitEmail']);
+  const { orbitToken, orbitEmail, lastSyncedAt } = await chrome.storage.local.get(['orbitToken', 'orbitEmail', 'lastSyncedAt']);
 
   if (orbitToken) {
     showImportView(orbitEmail);
+    updateSyncStatus(lastSyncedAt || null);
   } else {
     viewLogin.style.display = 'block';
     viewImport.style.display = 'none';
@@ -141,6 +162,20 @@ function startImport() {
         stateDone.style.display = 'block';
         doneImported.textContent = msg.imported;
         doneSkipped.textContent  = msg.skipped;
+        break;
+      case 'synced_at':
+        updateSyncStatus(msg.ts);
+        break;
+      case 'auto_sync_done':
+        updateSyncStatus(msg.ts);
+        // If popup is open on idle state, show a subtle note
+        if (stateIdle.style.display !== 'none' && msg.imported > 0) {
+          const note = document.createElement('div');
+          note.style.cssText = 'font-size:11px;color:#2d7d4e;margin-top:4px;';
+          note.textContent = `Auto-synced: +${msg.imported} new connections`;
+          stateIdle.appendChild(note);
+          setTimeout(() => note.remove(), 5000);
+        }
         break;
       case 'error':
         stateRunning.style.display = 'none';
