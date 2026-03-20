@@ -2,58 +2,133 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
+const sectionLabel = {
+  fontFamily: 'Syne, sans-serif', fontSize: '13px', fontWeight: 600,
+  color: 'var(--text-secondary)', textTransform: 'uppercase',
+  letterSpacing: '0.07em', margin: '0 0 14px',
+}
+
+const fieldLabel = {
+  fontSize: '12px', color: 'var(--text-secondary)',
+  display: 'block', marginBottom: '5px',
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={fieldLabel}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function StatusBanner({ error, success }) {
+  if (error) return (
+    <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: 'var(--danger)' }}>
+      {error}
+    </div>
+  )
+  if (success) return (
+    <div style={{ padding: '10px 14px', background: 'rgba(52,211,153,0.08)', border: '1px solid var(--success)', borderRadius: '8px', fontSize: '13px', color: 'var(--success)' }}>
+      {success}
+    </div>
+  )
+  return null
+}
+
 export default function Settings() {
   const navigate = useNavigate()
 
-  const [profile, setProfile]       = useState({ firstName: '', lastName: '', email: '' })
-  const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '' })
+  // Profile
+  const [profile, setProfile] = useState({
+    firstName: '', lastName: '', title: '', company: '', linkedinUrl: '', email: '',
+  })
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError]   = useState(null)
   const [profileSaved, setProfileSaved]   = useState(false)
 
-  const [pwForm, setPwForm]     = useState({ current: '', next: '', confirm: '' })
+  // Agent / use-case context
+  const [agentCtx, setAgentCtx] = useState({
+    my_role: '', what_i_sell: '', icp_description: '',
+  })
+  const [ctxSaving, setCtxSaving] = useState(false)
+  const [ctxError, setCtxError]   = useState(null)
+  const [ctxSaved, setCtxSaved]   = useState(false)
+
+  // Password
+  const [pwForm, setPwForm]       = useState({ current: '', next: '', confirm: '' })
   const [pwLoading, setPwLoading] = useState(false)
-  const [pwError, setPwError]   = useState(null)
+  const [pwError, setPwError]     = useState(null)
   const [pwSuccess, setPwSuccess] = useState(false)
 
   useEffect(() => {
     api.me().then(d => {
-      const firstName = d.first_name || localStorage.getItem('user_first_name') || ''
-      const lastName  = d.last_name  || localStorage.getItem('user_last_name')  || ''
-      const email     = d.user?.email || ''
-      setProfile({ firstName, lastName, email })
-      setProfileForm({ firstName, lastName })
+      const firstName  = d.first_name  || localStorage.getItem('user_first_name') || ''
+      const lastName   = d.last_name   || localStorage.getItem('user_last_name')  || ''
+      setProfile({
+        firstName,
+        lastName,
+        title:       d.title       || '',
+        company:     d.company     || '',
+        linkedinUrl: d.linkedin_url || '',
+        email:       d.user?.email  || '',
+      })
+    }).catch(() => {})
+
+    api.getAgentContext().then(d => {
+      if (d.context) setAgentCtx({
+        my_role:         d.context.my_role         || '',
+        what_i_sell:     d.context.what_i_sell     || '',
+        icp_description: d.context.icp_description || '',
+      })
     }).catch(() => {})
   }, [])
 
   async function handleSaveProfile(e) {
     e.preventDefault()
-    if (!profileForm.firstName.trim()) {
-      setProfileError('First name is required')
-      return
-    }
+    if (!profile.firstName.trim()) { setProfileError('First name is required'); return }
     setProfileError(null)
     setProfileSaving(true)
     try {
-      await api.updateProfile({ first_name: profileForm.firstName.trim(), last_name: profileForm.lastName.trim() })
-      setProfile(p => ({ ...p, firstName: profileForm.firstName.trim(), lastName: profileForm.lastName.trim() }))
-      localStorage.setItem('user_first_name', profileForm.firstName.trim())
-      localStorage.setItem('user_last_name',  profileForm.lastName.trim())
+      await api.updateProfile({
+        first_name:   profile.firstName.trim(),
+        last_name:    profile.lastName.trim(),
+        title:        profile.title.trim(),
+        company:      profile.company.trim(),
+        linkedin_url: profile.linkedinUrl.trim(),
+      })
+      localStorage.setItem('user_first_name', profile.firstName.trim())
+      localStorage.setItem('user_last_name',  profile.lastName.trim())
       setProfileSaved(true)
       setTimeout(() => setProfileSaved(false), 2500)
     } catch (err) {
-      setProfileError(err.message || 'Failed to update profile')
+      setProfileError(err.message || 'Failed to save profile')
     } finally {
       setProfileSaving(false)
     }
   }
 
+  async function handleSaveContext(e) {
+    e.preventDefault()
+    setCtxError(null)
+    setCtxSaving(true)
+    try {
+      await api.saveAgentContext({
+        ...agentCtx,
+        my_company: profile.company.trim(), // keep in sync with profile company
+      })
+      setCtxSaved(true)
+      setTimeout(() => setCtxSaved(false), 2500)
+    } catch (err) {
+      setCtxError(err.message || 'Failed to save')
+    } finally {
+      setCtxSaving(false)
+    }
+  }
+
   async function handleChangePassword(e) {
     e.preventDefault()
-    if (pwForm.next !== pwForm.confirm) {
-      setPwError('New passwords do not match')
-      return
-    }
+    if (pwForm.next !== pwForm.confirm) { setPwError('New passwords do not match'); return }
     setPwError(null)
     setPwLoading(true)
     try {
@@ -73,105 +148,117 @@ export default function Settings() {
     navigate('/auth/signin', { replace: true })
   }
 
-  const sectionLabel = {
-    fontFamily: 'Syne, sans-serif', fontSize: '14px', fontWeight: 600,
-    color: 'var(--text-secondary)', textTransform: 'uppercase',
-    letterSpacing: '0.06em', margin: '0 0 16px',
-  }
-
-  const fieldLabel = {
-    fontSize: '12px', color: 'var(--text-secondary)',
-    display: 'block', marginBottom: '6px',
-  }
+  const inp = { className: 'input', style: { fontSize: '14px' } }
 
   return (
-    <div className="page-pad" style={{ maxWidth: '560px' }}>
+    <div className="page-pad" style={{ maxWidth: '580px' }}>
       <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>
         Settings
       </h1>
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 36px' }}>
-        Manage your account.
+        Your profile, business context, and account.
       </p>
 
-      {/* Profile */}
+      {/* ── Profile ──────────────────────────────────────────────────────── */}
       <section style={{ marginBottom: '32px' }}>
-        <h2 style={sectionLabel}>Profile</h2>
-        <div className="card" style={{ padding: '20px 24px' }}>
-          <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {profileError && (
-              <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: 'var(--danger)' }}>
-                {profileError}
-              </div>
-            )}
+        <h2 style={sectionLabel}>Your profile</h2>
+        <div className="card" style={{ padding: '22px 24px' }}>
+          <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <StatusBanner error={profileError} success={profileSaved ? 'Profile saved.' : null} />
+
             <div style={{ display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={fieldLabel}>First name</label>
-                <input
-                  className="input"
-                  value={profileForm.firstName}
-                  onChange={e => setProfileForm(p => ({ ...p, firstName: e.target.value }))}
-                  required
-                  autoComplete="given-name"
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={fieldLabel}>Last name</label>
-                <input
-                  className="input"
-                  value={profileForm.lastName}
-                  onChange={e => setProfileForm(p => ({ ...p, lastName: e.target.value }))}
-                  autoComplete="family-name"
-                />
-              </div>
+              <Field label="First name">
+                <input {...inp} value={profile.firstName} onChange={e => setProfile(p => ({ ...p, firstName: e.target.value }))} required autoComplete="given-name" />
+              </Field>
+              <Field label="Last name">
+                <input {...inp} value={profile.lastName} onChange={e => setProfile(p => ({ ...p, lastName: e.target.value }))} autoComplete="family-name" />
+              </Field>
             </div>
-            <div>
-              <label style={fieldLabel}>Email</label>
-              <input
-                className="input"
-                value={profile.email}
-                readOnly
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
-              />
-            </div>
+
+            <Field label="Job title">
+              <input {...inp} placeholder="e.g. VP of Sales" value={profile.title} onChange={e => setProfile(p => ({ ...p, title: e.target.value }))} autoComplete="organization-title" />
+            </Field>
+
+            <Field label="Company">
+              <input {...inp} placeholder="e.g. Acme Corp" value={profile.company} onChange={e => setProfile(p => ({ ...p, company: e.target.value }))} autoComplete="organization" />
+            </Field>
+
+            <Field label="LinkedIn URL">
+              <input {...inp} placeholder="https://linkedin.com/in/yourname" value={profile.linkedinUrl} onChange={e => setProfile(p => ({ ...p, linkedinUrl: e.target.value }))} type="url" autoComplete="url" />
+            </Field>
+
+            <Field label="Email">
+              <input {...inp} value={profile.email} readOnly style={{ fontSize: '14px', opacity: 0.55, cursor: 'not-allowed' }} />
+            </Field>
+
             <button
               type="submit"
               className="btn-primary"
-              style={{ alignSelf: 'flex-start', fontSize: '14px', background: profileSaved ? 'var(--success)' : undefined }}
+              style={{ alignSelf: 'flex-start', fontSize: '14px' }}
               disabled={profileSaving}
             >
-              {profileSaved ? 'Saved!' : profileSaving ? 'Saving…' : 'Save profile'}
+              {profileSaving ? 'Saving…' : 'Save profile'}
             </button>
           </form>
         </div>
       </section>
 
-      {/* Change password */}
+      {/* ── How you're using OrbitSix ─────────────────────────────────── */}
+      <section style={{ marginBottom: '32px' }}>
+        <h2 style={sectionLabel}>How you're using OrbitSix</h2>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '-8px 0 14px' }}>
+          This feeds your AI agent so it can make smarter recommendations and draft better intros.
+        </p>
+        <div className="card" style={{ padding: '22px 24px' }}>
+          <form onSubmit={handleSaveContext} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <StatusBanner error={ctxError} success={ctxSaved ? 'Saved.' : null} />
+
+            <Field label="Your role / what you do">
+              <input {...inp} placeholder="e.g. VP of Sales, Founder, Account Executive" value={agentCtx.my_role} onChange={e => setAgentCtx(p => ({ ...p, my_role: e.target.value }))} />
+            </Field>
+
+            <Field label="What you sell or offer">
+              <input {...inp} placeholder="e.g. B2B SaaS for finance teams, consulting, recruiting" value={agentCtx.what_i_sell} onChange={e => setAgentCtx(p => ({ ...p, what_i_sell: e.target.value }))} />
+            </Field>
+
+            <Field label="Who you're trying to reach (ideal customer / target persona)">
+              <textarea
+                className="input"
+                rows={2}
+                placeholder="e.g. Series B+ fintech startups, enterprise procurement teams, VP-level buyers…"
+                value={agentCtx.icp_description}
+                onChange={e => setAgentCtx(p => ({ ...p, icp_description: e.target.value }))}
+                style={{ fontSize: '14px', resize: 'vertical' }}
+              />
+            </Field>
+
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ alignSelf: 'flex-start', fontSize: '14px' }}
+              disabled={ctxSaving}
+            >
+              {ctxSaving ? 'Saving…' : 'Save'}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* ── Change password ───────────────────────────────────────────── */}
       <section style={{ marginBottom: '32px' }}>
         <h2 style={sectionLabel}>Change password</h2>
-        <div className="card" style={{ padding: '20px 24px' }}>
-          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {pwError && (
-              <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: 'var(--danger)' }}>
-                {pwError}
-              </div>
-            )}
-            {pwSuccess && (
-              <div style={{ padding: '10px 14px', background: 'rgba(52,211,153,0.08)', border: '1px solid var(--success)', borderRadius: '8px', fontSize: '13px', color: 'var(--success)' }}>
-                Password updated successfully.
-              </div>
-            )}
-            <div>
-              <label style={fieldLabel}>Current password</label>
-              <input className="input" type="password" value={pwForm.current} onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))} required autoComplete="current-password" />
-            </div>
-            <div>
-              <label style={fieldLabel}>New password</label>
-              <input className="input" type="password" value={pwForm.next} onChange={e => setPwForm(p => ({ ...p, next: e.target.value }))} required minLength={8} autoComplete="new-password" />
-            </div>
-            <div>
-              <label style={fieldLabel}>Confirm new password</label>
-              <input className="input" type="password" value={pwForm.confirm} onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))} required autoComplete="new-password" />
-            </div>
+        <div className="card" style={{ padding: '22px 24px' }}>
+          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <StatusBanner error={pwError} success={pwSuccess ? 'Password updated.' : null} />
+            <Field label="Current password">
+              <input {...inp} type="password" value={pwForm.current} onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))} required autoComplete="current-password" />
+            </Field>
+            <Field label="New password">
+              <input {...inp} type="password" value={pwForm.next} onChange={e => setPwForm(p => ({ ...p, next: e.target.value }))} required minLength={8} autoComplete="new-password" />
+            </Field>
+            <Field label="Confirm new password">
+              <input {...inp} type="password" value={pwForm.confirm} onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))} required autoComplete="new-password" />
+            </Field>
             <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-start', fontSize: '14px' }} disabled={pwLoading}>
               {pwLoading ? 'Updating…' : 'Update password'}
             </button>
@@ -179,15 +266,15 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Session */}
+      {/* ── Session ───────────────────────────────────────────────────── */}
       <section>
         <h2 style={sectionLabel}>Session</h2>
-        <div className="card" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="card" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 500 }}>Sign out</div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>You&apos;ll be returned to the sign-in page.</div>
           </div>
-          <button className="btn-ghost" style={{ fontSize: '13px' }} onClick={handleSignOut}>
+          <button className="btn-ghost" style={{ fontSize: '13px', flexShrink: 0 }} onClick={handleSignOut}>
             Sign out
           </button>
         </div>

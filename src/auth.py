@@ -225,8 +225,11 @@ def me():
         user={"id": user.id, "email": user.email, "role": user.role, "email_verified": user.email_verified},
         tenant={"id": user.tenant.id, "name": user.tenant.name},
         self_person_id=self_person.id if self_person else None,
-        first_name=self_person.first_name if self_person else None,
-        last_name=self_person.last_name if self_person else None,
+        first_name=self_person.first_name   if self_person else None,
+        last_name=self_person.last_name     if self_person else None,
+        title=self_person.title             if self_person else None,
+        company=self_person.company         if self_person else None,
+        linkedin_url=self_person.linkedin_url if self_person else None,
     )
 
 
@@ -239,16 +242,25 @@ def update_profile():
         return jsonify(error="User not found"), 404
 
     data = request.get_json(silent=True) or {}
-    first_name = data.get("first_name", "").strip()
-    last_name  = data.get("last_name",  "").strip()
+    first_name   = data.get("first_name", "").strip()
+    last_name    = data.get("last_name",  "").strip()
+    title        = data.get("title",        "").strip()
+    company      = data.get("company",      "").strip()
+    linkedin_url = data.get("linkedin_url", "").strip()
 
     if not first_name:
         return jsonify(error="First name is required"), 400
 
     self_person = Person.query.filter_by(user_id=user.id, is_self=True).first()
     if self_person:
-        self_person.first_name = first_name
-        self_person.last_name  = last_name
+        self_person.first_name   = first_name
+        self_person.last_name    = last_name
+        self_person.title        = title        or None
+        self_person.company      = company      or None
+        self_person.linkedin_url = linkedin_url or None
         db.session.commit()
 
-    return jsonify(first_name=first_name, last_name=last_name)
+    return jsonify(
+        first_name=first_name, last_name=last_name,
+        title=title, company=company, linkedin_url=linkedin_url,
+    )

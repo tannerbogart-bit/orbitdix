@@ -200,14 +200,11 @@ function StepImport({ onDone, onSkip }) {
 
 // ── Step 2: Targets + context ─────────────────────────────────────────────
 function StepTargets({ onDone }) {
-  const [context, setContext] = useState({ my_role: '', my_company: '', what_i_sell: '', icp_description: '' })
+  const [profile, setProfile] = useState({ title: '', company: '' })
+  const [context, setContext] = useState({ my_role: '', what_i_sell: '', icp_description: '' })
   const [targets, setTargets] = useState(['', '', ''])
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState(null)
-
-  function setCtx(key) {
-    return e => setContext(p => ({ ...p, [key]: e.target.value }))
-  }
 
   function setTarget(i, val) {
     setTargets(prev => { const next = [...prev]; next[i] = val; return next })
@@ -218,8 +215,23 @@ function StepTargets({ onDone }) {
     setSaving(true)
     setError(null)
     try {
-      await api.saveAgentContext(context)
+      // Save profile fields (title + company) onto the self-person record
+      await api.updateProfile({
+        first_name:   localStorage.getItem('user_first_name') || '',
+        last_name:    localStorage.getItem('user_last_name')  || '',
+        title:        profile.title.trim(),
+        company:      profile.company.trim(),
+      })
 
+      // Save agent context (role, what you sell, ICP + company for agent awareness)
+      await api.saveAgentContext({
+        my_role:         context.my_role,
+        my_company:      profile.company.trim(),
+        what_i_sell:     context.what_i_sell,
+        icp_description: context.icp_description,
+      })
+
+      // Save target accounts
       const companies = targets.map(t => t.trim()).filter(Boolean)
       await Promise.all(companies.map(name => api.addTargetAccount({ company_name: name })))
 
@@ -230,15 +242,15 @@ function StepTargets({ onDone }) {
     }
   }
 
-  const inputStyle = { width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', boxSizing: 'border-box' }
-  const labelStyle = { fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }
+  const inp = { style: { width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', boxSizing: 'border-box' } }
+  const lbl = { style: { fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' } }
 
   return (
     <form onSubmit={handleSave}>
       <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, margin: '0 0 6px' }}>
         Who are you trying to reach?
       </h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 22px', lineHeight: 1.5 }}>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 20px', lineHeight: 1.5 }}>
         Your AI agent uses this to surface the best paths and draft personalized intros.
       </p>
 
@@ -248,43 +260,44 @@ function StepTargets({ onDone }) {
         </div>
       )}
 
+      {/* About you */}
+      <div style={{ marginBottom: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>About you</div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ flex: 1 }}>
+            <label {...lbl}>Your role</label>
+            <input {...inp} placeholder="e.g. VP of Sales" value={profile.title} onChange={e => setProfile(p => ({ ...p, title: e.target.value }))} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label {...lbl}>Your company</label>
+            <input {...inp} placeholder="e.g. Acme Corp" value={profile.company} onChange={e => setProfile(p => ({ ...p, company: e.target.value }))} />
+          </div>
+        </div>
+        <div>
+          <label {...lbl}>What you sell or offer</label>
+          <input {...inp} placeholder="e.g. B2B SaaS for finance teams" value={context.what_i_sell} onChange={e => setContext(p => ({ ...p, what_i_sell: e.target.value }))} />
+        </div>
+        <div>
+          <label {...lbl}>Who you're trying to reach</label>
+          <input {...inp} placeholder="e.g. Series B+ fintech startups, enterprise VPs" value={context.icp_description} onChange={e => setContext(p => ({ ...p, icp_description: e.target.value }))} />
+        </div>
+      </div>
+
       {/* Target companies */}
-      <div style={{ marginBottom: '20px' }}>
+      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px', marginBottom: '22px' }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '10px' }}>
-          Target companies <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(add up to 3 to start)</span>
+          Target companies <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(up to 3 to start)</span>
         </div>
         {targets.map((t, i) => (
           <input
             key={i}
-            style={{ ...inputStyle, marginBottom: i < 2 ? '8px' : 0 }}
+            {...inp}
+            style={{ ...inp.style, marginBottom: i < 2 ? '8px' : 0 }}
             placeholder={`e.g. ${['Salesforce', 'HubSpot', 'Stripe'][i]}`}
             value={t}
             onChange={e => setTarget(i, e.target.value)}
           />
         ))}
-      </div>
-
-      {/* Business context */}
-      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '18px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
-          Your business context
-        </div>
-        <div>
-          <label style={labelStyle}>Your role</label>
-          <input style={inputStyle} placeholder="e.g. VP of Sales" value={context.my_role} onChange={setCtx('my_role')} />
-        </div>
-        <div>
-          <label style={labelStyle}>Your company</label>
-          <input style={inputStyle} placeholder="e.g. Acme Corp" value={context.my_company} onChange={setCtx('my_company')} />
-        </div>
-        <div>
-          <label style={labelStyle}>What you sell</label>
-          <input style={inputStyle} placeholder="e.g. B2B SaaS for finance teams" value={context.what_i_sell} onChange={setCtx('what_i_sell')} />
-        </div>
-        <div>
-          <label style={labelStyle}>Ideal customer</label>
-          <input style={inputStyle} placeholder="e.g. Series B+ fintech companies" value={context.icp_description} onChange={setCtx('icp_description')} />
-        </div>
       </div>
 
       <button type="submit" className="btn-primary" style={primaryBtn()} disabled={saving}>
