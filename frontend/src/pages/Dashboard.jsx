@@ -46,10 +46,14 @@ function StatCard({ label, value, delta }) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const [bannerDismissed, setBannerDismissed] = useState(false)
+  const [bannerDismissed, setBannerDismissed] = useState(
+    () => localStorage.getItem('ext_banner_dismissed') === '1'
+  )
   const [stats, setStats]           = useState({ connections: '…' })
   const [activities, setActivities] = useState(null)
   const [userName, setUserName]     = useState(localStorage.getItem('user_first_name') || '')
+  const hour     = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const [showUpgrade, setShowUpgrade] = useState(false)
 
   useEffect(() => {
@@ -112,7 +116,7 @@ export default function Dashboard() {
             margin: '0 0 4px',
           }}
         >
-          Good morning{userName ? `, ${userName}` : ''} 👋
+          {greeting}{userName ? `, ${userName}` : ''} 👋
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
           Here&apos;s what&apos;s happening in your network today.
@@ -170,7 +174,7 @@ export default function Dashboard() {
             <button
               className="btn-ghost"
               style={{ fontSize: '13px', padding: '8px 14px' }}
-              onClick={() => setBannerDismissed(true)}
+              onClick={() => { localStorage.setItem('ext_banner_dismissed', '1'); setBannerDismissed(true) }}
             >
               Dismiss
             </button>

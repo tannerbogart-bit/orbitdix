@@ -14,7 +14,7 @@ export default function Team() {
   }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '600px' }}>
+    <div className="page-pad" style={{ maxWidth: '600px' }}>
       <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>
         Team
       </h1>
@@ -57,7 +57,7 @@ export default function Team() {
         </form>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
         {[
           { emoji: '🔗', title: 'Shared paths',    desc: 'Everyone sees every path your team finds' },
           { emoji: '📊', title: 'Team analytics',  desc: 'Track outreach effectiveness across the team' },

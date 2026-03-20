@@ -261,9 +261,27 @@ export default function MyNetwork() {
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
                 Loading your network…
               </div>
-            ) : filtered.length === 0 ? (
+            ) : filtered.length === 0 && query ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-                {query ? `No people match "${query}"` : 'No people in your network yet. Import from CSV or use the Chrome extension.'}
+                No people match &ldquo;{query}&rdquo;
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="card" style={{ padding: '40px 32px', textAlign: 'center' }}>
+                <div style={{ fontSize: '40px', marginBottom: '14px' }}>🌐</div>
+                <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: '18px', fontWeight: 700, margin: '0 0 8px' }}>
+                  Your network is empty
+                </h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '0 0 22px', lineHeight: 1.6, maxWidth: '360px', marginInline: 'auto' }}>
+                  Import your LinkedIn connections to start finding paths, getting introductions, and using your AI agent.
+                </p>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button className="btn-primary" style={{ fontSize: '14px' }} onClick={() => setShowCSV(true)}>
+                    Import from LinkedIn CSV
+                  </button>
+                  <button className="btn-ghost" style={{ fontSize: '14px' }} onClick={() => setShowAdd(true)}>
+                    Add person manually
+                  </button>
+                </div>
               </div>
             ) : (
               filtered.map((p) => (

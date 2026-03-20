@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import DraftMessageModal from '../components/DraftMessageModal'
 import PathFlowGraph, { getHopLabel } from '../components/PathFlowGraph'
 import UpgradeModal from '../components/UpgradeModal'
@@ -205,6 +205,7 @@ function PathDetailPanel({ pathPeople, edges, target, onDraftMessage, onReset, o
 export default function FindPath() {
   const toast    = useToast()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const [people, setPeople]         = useState([])
   const [edges, setEdges]           = useState([])
@@ -363,9 +364,22 @@ export default function FindPath() {
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
                     Loading your network…
                   </div>
-                ) : filtered.length === 0 ? (
+                ) : filtered.length === 0 && query ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-                    {query ? `No people match "${query}"` : 'No contacts yet. Import from CSV or use the Chrome extension.'}
+                    No people match &ldquo;{query}&rdquo;
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="card" style={{ padding: '32px 24px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '36px', marginBottom: '12px' }}>🌐</div>
+                    <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: '16px', fontWeight: 700, margin: '0 0 6px' }}>
+                      No contacts in your network yet
+                    </h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 18px', lineHeight: 1.6 }}>
+                      Import your LinkedIn connections first — then you can find paths to anyone.
+                    </p>
+                    <button className="btn-primary" style={{ fontSize: '13px' }} onClick={() => navigate('/network')}>
+                      Go import your network →
+                    </button>
                   </div>
                 ) : (
                   filtered.map(p => (
