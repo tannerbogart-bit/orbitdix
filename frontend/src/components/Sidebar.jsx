@@ -134,9 +134,8 @@ export default function Sidebar() {
 
   return (
     <aside
+      className="app-sidebar"
       style={{
-        width: '220px',
-        minWidth: '220px',
         background: 'var(--bg-sidebar)',
         borderRight: '1px solid var(--border)',
         display: 'flex',
@@ -149,6 +148,7 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div
+        className="logo-wrap"
         style={{
           padding: '20px 18px 16px',
           display: 'flex',
@@ -182,6 +182,7 @@ export default function Sidebar() {
           </svg>
         </div>
         <span
+          className="logo-text"
           style={{
             fontFamily: 'Syne, sans-serif',
             fontWeight: 700,
@@ -217,13 +218,14 @@ export default function Sidebar() {
             })}
           >
             {item.icon}
-            {item.label}
+            <span className="nav-label">{item.label}</span>
           </NavLink>
         ))}
       </nav>
 
       {/* User → Settings */}
       <div
+        className="user-wrap"
         onClick={() => navigate('/settings')}
         style={{
           padding: '12px 14px',
@@ -256,7 +258,7 @@ export default function Sidebar() {
         >
           {initials}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="user-info" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {displayName}
           </div>

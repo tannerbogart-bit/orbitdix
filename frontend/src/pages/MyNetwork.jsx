@@ -142,7 +142,7 @@ export default function MyNetwork() {
   }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '900px' }}>
+    <div className="page-pad" style={{ maxWidth: '900px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '14px' }}>
         <div>
@@ -194,7 +194,7 @@ export default function MyNetwork() {
       {(() => {
         const { direct, second, thirdPlus } = computeDegreeCounts(withAvatars, edges)
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+          <div className="stats-grid-3" style={{ gap: '12px', marginBottom: '20px' }}>
             {[
               { label: 'Direct',      value: loading ? '…' : direct.toLocaleString()    },
               { label: '2nd degree',  value: loading ? '…' : second.toLocaleString()    },

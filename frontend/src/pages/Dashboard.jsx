@@ -65,7 +65,7 @@ export default function Dashboard() {
   }, [])
 
   return (
-    <div style={{ padding: '32px', maxWidth: '900px' }}>
+    <div className="page-pad" style={{ maxWidth: '900px' }}>
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
         <h1
@@ -143,14 +143,7 @@ export default function Dashboard() {
       )}
 
       {/* Stats row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '16px',
-          marginBottom: '28px',
-        }}
-      >
+      <div className="stats-grid-3">
         <StatCard label="Connections"      value={stats.connections?.toLocaleString()     ?? '…'} />
         <StatCard label="Paths Found"      value={stats.paths_found?.toLocaleString()     ?? '—'} />
         <StatCard label="Messages Drafted" value={stats.messages_drafted?.toLocaleString() ?? '—'} />

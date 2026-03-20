@@ -37,6 +37,7 @@ export default function Agent() {
   const [suggestions, setSuggestions] = useState([])
   const [contextOpen, setContextOpen] = useState(true)
   const [clearing, setClearing]       = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const messagesEndRef = useRef(null)
   const abortRef       = useRef(null)
@@ -244,10 +245,18 @@ export default function Agent() {
   const showEmptyState = historyLoaded && messages.length === 0
 
   return (
-    <div style={{ flex: 1, display: 'flex', height: '100%', overflow: 'hidden' }}>
+    <div className="agent-layout">
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 49 }}
+        />
+      )}
 
       {/* ── Left panel ─────────────────────────────────────────────────────── */}
-      <div style={{ width: '280px', minWidth: '280px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-sidebar)' }}>
+      <div className={`agent-sidebar${sidebarOpen ? ' open' : ''}`}>
         <div style={{ padding: '20px 18px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>AI Agent</div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Network intelligence assistant</div>
@@ -361,6 +370,12 @@ export default function Agent() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+          <button className="agent-sidebar-toggle" onClick={() => setSidebarOpen(o => !o)}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 3h12M1 7h12M1 11h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            Context &amp; Targets
+          </button>
 
           {/* Empty state with proactive suggestion chips */}
           {showEmptyState && (

@@ -199,3 +199,129 @@ h1, h2, h3, h4, h5, h6, .font-display {
   position: relative;
   top: -10px;
 }
+
+/* ── Responsive layout helpers ─────────────────────────────────────────── */
+.stats-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.page-pad {
+  padding: 32px;
+}
+
+/* Agent two-panel layout */
+.agent-layout {
+  flex: 1;
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.agent-sidebar {
+  width: 280px;
+  min-width: 280px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-sidebar);
+}
+
+.agent-sidebar-toggle {
+  display: none;
+}
+
+/* App sidebar */
+.app-sidebar {
+  width: 220px;
+  min-width: 220px;
+}
+
+.nav-label { display: inline; }
+
+@media (max-width: 640px) {
+  .app-sidebar {
+    width: 56px;
+    min-width: 56px;
+  }
+  .app-sidebar .logo-text,
+  .app-sidebar .nav-label,
+  .app-sidebar .user-info {
+    display: none;
+  }
+  .app-sidebar .logo-wrap {
+    justify-content: center;
+  }
+  .app-sidebar nav a {
+    justify-content: center;
+    padding: 10px !important;
+  }
+  .app-sidebar .user-wrap {
+    justify-content: center;
+    padding: 12px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .page-pad {
+    padding: 16px;
+  }
+
+  .modal-box {
+    margin: 12px;
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .agent-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    width: 88vw;
+    min-width: 0;
+    max-width: 320px;
+  }
+
+  .agent-sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+  }
+
+  .agent-sidebar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    margin-bottom: 8px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  .stats-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .page-pad {
+    padding: 24px;
+  }
+}

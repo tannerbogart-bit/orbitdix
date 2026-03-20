@@ -292,7 +292,7 @@ export default function FindPath() {
   const saveKey = `${me?.id}-${toPerson?.id}`
 
   return (
-    <div style={{ padding: '32px', maxWidth: '680px' }}>
+    <div className="page-pad" style={{ maxWidth: '680px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>
           Find a Path
