@@ -238,6 +238,44 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Agent CTA */}
+      <div
+        className="card"
+        style={{
+          padding: '20px 24px',
+          marginBottom: '28px',
+          background: 'linear-gradient(135deg, rgba(124,110,224,0.1) 0%, rgba(96,165,250,0.05) 100%)',
+          borderColor: 'rgba(124,110,224,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          cursor: 'pointer',
+        }}
+        onClick={() => navigate('/agent')}
+      >
+        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 14px var(--accent-glow)' }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <circle cx="9" cy="9" r="3" fill="white" />
+            <circle cx="9" cy="9" r="7" stroke="white" strokeWidth="1.5" fill="none" />
+            <circle cx="9" cy="2" r="1.5" fill="white" />
+            <circle cx="9" cy="16" r="1.5" fill="white" />
+            <circle cx="2" cy="9" r="1.5" fill="white" />
+            <circle cx="16" cy="9" r="1.5" fill="white" />
+          </svg>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>
+            AI Network Agent
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            Get connection recommendations, gap analysis, and intro strategies tailored to your targets.
+          </div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--accent)', flexShrink: 0 }}>
+          <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+
       {/* Recent activity */}
       <div>
         <h2

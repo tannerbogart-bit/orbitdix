@@ -33,6 +33,7 @@ async function req(method, path, body) {
 export const api = {
   // Auth
   me: ()                             => req('GET',  '/me'),
+  updateProfile: (data)              => req('PUT',  '/me', data),
   changePassword: (current, next)    => req('POST', '/auth/change-password', { current_password: current, new_password: next }),
   resendVerification: ()             => req('POST', '/auth/resend-verification'),
 

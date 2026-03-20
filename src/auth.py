@@ -22,6 +22,9 @@ def signup():
     if not tenant_name or not email or not password:
         return jsonify(error="tenant_name, email, and password are required"), 400
 
+    if len(password) < 8:
+        return jsonify(error="Password must be at least 8 characters"), 400
+
     if User.query.filter_by(email=email).first():
         return jsonify(error="Email already registered"), 409
 
@@ -222,4 +225,30 @@ def me():
         user={"id": user.id, "email": user.email, "role": user.role, "email_verified": user.email_verified},
         tenant={"id": user.tenant.id, "name": user.tenant.name},
         self_person_id=self_person.id if self_person else None,
+        first_name=self_person.first_name if self_person else None,
+        last_name=self_person.last_name if self_person else None,
     )
+
+
+@bp.put("/api/me")
+@jwt_required()
+def update_profile():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify(error="User not found"), 404
+
+    data = request.get_json(silent=True) or {}
+    first_name = data.get("first_name", "").strip()
+    last_name  = data.get("last_name",  "").strip()
+
+    if not first_name:
+        return jsonify(error="First name is required"), 400
+
+    self_person = Person.query.filter_by(user_id=user.id, is_self=True).first()
+    if self_person:
+        self_person.first_name = first_name
+        self_person.last_name  = last_name
+        db.session.commit()
+
+    return jsonify(first_name=first_name, last_name=last_name)
