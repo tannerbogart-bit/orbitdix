@@ -15,6 +15,12 @@ async function req(method, path, body) {
   if (body !== undefined) opts.body = JSON.stringify(body)
   const res = await fetch(BASE + path, opts)
   if (res.status === 204) return null
+  // Expired / invalid token — clear storage and redirect to sign-in
+  if (res.status === 401 && path !== '/auth/login') {
+    localStorage.removeItem('access_token')
+    window.location.href = '/auth/signin'
+    return null
+  }
   const json = await res.json()
   if (!res.ok) {
     const err = new Error(json.error || `HTTP ${res.status}`)

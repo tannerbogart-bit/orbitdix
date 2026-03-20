@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ToastProvider } from './components/Toast'
+import ErrorBoundary from './components/ErrorBoundary'
 
 // Public pages
 import Pricing        from './pages/Pricing'
@@ -7,6 +8,7 @@ import PricingSuccess from './pages/PricingSuccess'
 
 // Auth flow
 import SignIn            from './pages/auth/SignIn'
+import SignUp            from './pages/auth/SignUp'
 import LinkedInOAuth     from './pages/auth/LinkedInOAuth'
 import OAuthCallback     from './pages/auth/OAuthCallback'
 import AccountConfirmed  from './pages/auth/AccountConfirmed'
@@ -30,6 +32,7 @@ import Activity    from './pages/Activity'
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <ToastProvider>
       <Routes>
         {/* Public */}
@@ -39,6 +42,7 @@ export default function App() {
 
         {/* Auth / onboarding */}
         <Route path="/auth/signin"              element={<SignIn />}            />
+        <Route path="/auth/signup"              element={<SignUp />}            />
         <Route path="/auth/linkedin"          element={<LinkedInOAuth />}    />
         <Route path="/auth/oauth-callback"    element={<OAuthCallback />}    />
         <Route path="/auth/confirmed"         element={<AccountConfirmed />} />
@@ -66,5 +70,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/pricing" replace />} />
       </Routes>
     </ToastProvider>
+    </ErrorBoundary>
   )
 }

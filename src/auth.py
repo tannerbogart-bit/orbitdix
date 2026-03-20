@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
@@ -48,7 +49,7 @@ def signup():
     db.session.add(self_person)
     db.session.commit()
 
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(hours=24))
 
     # Send verification email (non-blocking — failure doesn't break signup)
     _send_verification(user, current_app)
@@ -77,7 +78,7 @@ def login():
     if user is None or not check_password_hash(user.password_hash, password):
         return jsonify(error="Invalid credentials"), 401
 
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(hours=24))
     return jsonify(access_token=access_token)
 
 

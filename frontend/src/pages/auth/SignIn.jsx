@@ -192,9 +192,9 @@ export default function SignIn() {
         Don&apos;t have an account?{' '}
         <span
           style={{ color: 'var(--accent)', cursor: 'pointer' }}
-          onClick={() => handleOAuth('linkedin')}
+          onClick={() => navigate('/auth/signup')}
         >
-          Sign up with LinkedIn
+          Sign up with email
         </span>
       </p>
     </AuthShell>

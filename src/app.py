@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import timedelta
 
 import sqlalchemy as sa
 from dotenv import load_dotenv
@@ -8,6 +9,8 @@ import pathlib
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy.engine import Engine
 
 from .db import db, migrate, PROD_POOL_OPTIONS
@@ -29,6 +32,7 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
     # SECRET_KEY protects Flask session cookies (used for OAuth CSRF state)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-session-secret-change-me")
     app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -46,6 +50,13 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt = JWTManager(app)
+
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=[],
+        storage_uri="memory://",
+    )
 
     @jwt.invalid_token_loader
     def invalid_token_callback(reason):
@@ -67,6 +78,9 @@ def create_app():
     from .oauth import bp as oauth_bp
     from .people import bp as people_bp
     from .saved_paths import bp as saved_paths_bp
+
+    # Rate-limit sensitive auth endpoints (10 req/min per IP)
+    limiter.limit("10 per minute")(auth_bp)
 
     app.register_blueprint(agent_bp)
     app.register_blueprint(ai_bp)
