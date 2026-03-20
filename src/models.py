@@ -114,6 +114,38 @@ class Activity(db.Model):
     created_at = db.Column(db.DateTime,   default=lambda: datetime.now(timezone.utc))
 
 
+class AgentContext(db.Model):
+    __tablename__ = "agent_contexts"
+
+    id              = db.Column(db.Integer,     primary_key=True)
+    user_id         = db.Column(db.Integer,     db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    my_company      = db.Column(db.String(255), nullable=True)
+    my_role         = db.Column(db.String(255), nullable=True)
+    what_i_sell     = db.Column(db.Text,        nullable=True)
+    icp_description = db.Column(db.Text,        nullable=True)
+    updated_at      = db.Column(db.DateTime,    default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", backref=db.backref("agent_context", uselist=False, cascade="all, delete-orphan"))
+
+
+class TargetAccount(db.Model):
+    __tablename__ = "target_accounts"
+    __table_args__ = (
+        db.Index("ix_target_accounts_user_id",   "user_id"),
+        db.Index("ix_target_accounts_tenant_id", "tenant_id"),
+        db.UniqueConstraint("user_id", "company_name", name="uq_target_account_user_company"),
+    )
+
+    id           = db.Column(db.Integer,     primary_key=True)
+    user_id      = db.Column(db.Integer,     db.ForeignKey("users.id",    ondelete="CASCADE"), nullable=False)
+    tenant_id    = db.Column(db.Integer,     db.ForeignKey("tenants.id",  ondelete="CASCADE"), nullable=False)
+    company_name = db.Column(db.String(255), nullable=False)
+    reason       = db.Column(db.Text,        nullable=True)
+    created_at   = db.Column(db.DateTime,    default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", backref=db.backref("target_accounts", lazy=True, cascade="all, delete-orphan", passive_deletes=True))
+
+
 class Edge(db.Model):
     __tablename__ = "edges"
     __table_args__ = (

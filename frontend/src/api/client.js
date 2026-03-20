@@ -60,6 +60,13 @@ export const api = {
   // AI
   draftMessage: (payload) => req('POST', '/draft-message', payload),
 
+  // Agent
+  getAgentContext:    ()       => req('GET',    '/agent/context'),
+  saveAgentContext:   (data)   => req('PUT',    '/agent/context', data),
+  getTargetAccounts:  ()       => req('GET',    '/agent/targets'),
+  addTargetAccount:   (data)   => req('POST',   '/agent/targets', data),
+  deleteTargetAccount:(id)     => req('DELETE', `/agent/targets/${id}`),
+
   // Billing
   getBillingPlan:  ()     => req('GET',  '/billing/plan'),
   createCheckout:  (plan) => req('POST', '/checkout', {

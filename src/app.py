@@ -57,8 +57,9 @@ def create_app():
         print("[JWT] Token has expired")
         return jsonify(error="Token has expired"), 401
 
-    from .models import Person, Edge, Tenant, User, SavedPath, Activity  # noqa: F401 — registers models with SQLAlchemy
+    from .models import Person, Edge, Tenant, User, SavedPath, Activity, AgentContext, TargetAccount  # noqa: F401 — registers models with SQLAlchemy
 
+    from .agent import bp as agent_bp
     from .ai import bp as ai_bp
     from .auth import bp as auth_bp
     from .billing import bp as billing_bp
@@ -67,6 +68,7 @@ def create_app():
     from .people import bp as people_bp
     from .saved_paths import bp as saved_paths_bp
 
+    app.register_blueprint(agent_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(billing_bp)

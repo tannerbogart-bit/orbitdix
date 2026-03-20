@@ -16,6 +16,20 @@ const NAV = [
     ),
   },
   {
+    to: '/agent',
+    label: 'AI Agent',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="9" cy="2" r="1.5" fill="currentColor" />
+        <circle cx="9" cy="16" r="1.5" fill="currentColor" />
+        <circle cx="2" cy="9" r="1.5" fill="currentColor" />
+        <circle cx="16" cy="9" r="1.5" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
     to: '/find-path',
     label: 'Find a Path',
     icon: (

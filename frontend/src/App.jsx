@@ -19,6 +19,7 @@ import Syncing           from './pages/auth/Syncing'
 // Main app shell
 import Shell       from './components/Shell'
 import RequireAuth from './components/RequireAuth'
+import Agent      from './pages/Agent'
 import Dashboard   from './pages/Dashboard'
 import FindPath    from './pages/FindPath'
 import MyNetwork   from './pages/MyNetwork'
@@ -50,6 +51,7 @@ export default function App() {
         {/* Main app (with sidebar) — requires auth */}
         <Route element={<RequireAuth />}>
         <Route element={<Shell />}>
+          <Route path="/agent"     element={<Agent />}      />
           <Route path="/dashboard" element={<Dashboard />}  />
           <Route path="/find-path" element={<FindPath />}   />
           <Route path="/network"   element={<MyNetwork />}  />
