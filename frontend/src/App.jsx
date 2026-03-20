@@ -18,6 +18,9 @@ import VerifyEmail       from './pages/auth/VerifyEmail'
 import InstallExtension  from './pages/auth/InstallExtension'
 import Syncing           from './pages/auth/Syncing'
 
+// Onboarding
+import Onboarding from './pages/onboarding/Onboarding'
+
 // Main app shell
 import Shell       from './components/Shell'
 import RequireAuth from './components/RequireAuth'
@@ -51,6 +54,7 @@ export default function App() {
         <Route path="/auth/verify-email"      element={<VerifyEmail />}      />
         <Route path="/auth/install-extension" element={<InstallExtension />} />
         <Route path="/auth/syncing"           element={<Syncing />}          />
+        <Route path="/onboarding"             element={<Onboarding />}       />
 
         {/* Main app (with sidebar) — requires auth */}
         <Route element={<RequireAuth />}>

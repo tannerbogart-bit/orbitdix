@@ -1,0 +1,363 @@
+// Post-signup onboarding wizard — 3 steps:
+// 1. Import LinkedIn network (CSV or extension)
+// 2. Set targets + business context (feeds agent)
+// 3. Ready — agent surfaces first insights
+import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../../api/client'
+import AuthShell from '../auth/AuthShell'
+
+// ── CSV helpers (same logic as CSVUploadModal) ────────────────────────────
+const BATCH_SIZE = 200
+
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
+  if (lines.length < 2) return []
+
+  function parseLine(line) {
+    const fields = []
+    let field = '', inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { field += '"'; i++ }
+        else inQuotes = !inQuotes
+      } else if (ch === ',' && !inQuotes) {
+        fields.push(field.trim()); field = ''
+      } else { field += ch }
+    }
+    fields.push(field.trim())
+    return fields
+  }
+
+  const HEADER_KEYWORDS = ['first name', 'last name', 'firstname', 'lastname']
+  let headerIdx = 0
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const lower = lines[i].toLowerCase()
+    if (HEADER_KEYWORDS.some(k => lower.includes(k))) { headerIdx = i; break }
+  }
+
+  const headers = parseLine(lines[headerIdx]).map(h => h.toLowerCase().replace(/\s+/g, '_'))
+  return lines.slice(headerIdx + 1).filter(l => l.trim()).map(line => {
+    const values = parseLine(line)
+    const row = {}
+    headers.forEach((h, i) => { row[h] = values[i] || '' })
+    return row
+  })
+}
+
+function rowToPerson(row) {
+  const firstName   = row['first_name'] || row['firstname'] || ''
+  const lastName    = row['last_name']  || row['lastname']  || ''
+  const email       = row['email_address'] || row['email'] || ''
+  const company     = row['company'] || row['organization'] || ''
+  const title       = row['position'] || row['title'] || row['job_title'] || ''
+  const linkedinUrl = row['url'] || row['linkedin_url'] || row['linkedin'] || ''
+  if (!firstName && !lastName && !email) return null
+  return {
+    first_name: firstName, last_name: lastName,
+    email: email || undefined, company: company || undefined,
+    title: title || undefined, linkedin_url: linkedinUrl || undefined,
+  }
+}
+
+// ── Shared button / input styles ──────────────────────────────────────────
+const primaryBtn = (extra = {}) => ({
+  width: '100%', justifyContent: 'center', fontSize: '15px',
+  padding: '12px', display: 'flex', alignItems: 'center', gap: '8px',
+  ...extra,
+})
+
+const ghostBtn = (extra = {}) => ({
+  width: '100%', justifyContent: 'center', fontSize: '14px',
+  padding: '10px', ...extra,
+})
+
+// ── Step 1: Import network ────────────────────────────────────────────────
+function StepImport({ onDone, onSkip }) {
+  const fileRef = useRef(null)
+  const [dragging, setDragging]   = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [imported, setImported]   = useState(null)
+  const [error, setError]         = useState(null)
+
+  async function handleFile(file) {
+    if (!file) return
+    setError(null)
+    setImporting(true)
+    try {
+      const text  = await file.text()
+      const rows  = parseCSV(text)
+      const people = rows.map(rowToPerson).filter(Boolean)
+
+      if (people.length === 0) {
+        setError("Couldn't find any contacts in this file. Make sure it's a LinkedIn connections export.")
+        setImporting(false)
+        return
+      }
+
+      let total = 0
+      for (let i = 0; i < people.length; i += BATCH_SIZE) {
+        const batch = people.slice(i, i + BATCH_SIZE)
+        const res = await api.bulkImport(batch)
+        total += res.imported ?? 0
+      }
+      setImported(total)
+    } catch {
+      setError('Import failed. Please try again.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  function onDrop(e) {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
+  }
+
+  if (imported !== null) {
+    return (
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>✓</div>
+        <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, margin: '0 0 8px' }}>
+          {imported.toLocaleString()} connections imported
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 28px' }}>
+          Your network is ready. Next, tell the agent who you want to reach.
+        </p>
+        <button className="btn-primary" style={primaryBtn()} onClick={onDone}>
+          Continue → Set your targets
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, margin: '0 0 8px' }}>
+        Import your LinkedIn network
+      </h2>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 24px', lineHeight: 1.5 }}>
+        Export your connections from LinkedIn, then drop the CSV here. OrbitSix maps every path between you and your targets.
+      </p>
+
+      {/* How to export */}
+      <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <strong style={{ color: 'var(--text-primary)' }}>How to export from LinkedIn:</strong>
+        <br />
+        Settings &amp; Privacy → Data Privacy → Get a copy of your data → Connections → Request archive
+      </div>
+
+      {error && (
+        <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: 'var(--danger)', marginBottom: '14px' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Drop zone */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        onClick={() => fileRef.current?.click()}
+        style={{
+          border: `2px dashed ${dragging ? 'var(--accent)' : 'var(--border)'}`,
+          borderRadius: '12px',
+          padding: '36px 20px',
+          textAlign: 'center',
+          cursor: 'pointer',
+          background: dragging ? 'var(--accent-dim)' : 'var(--bg-input)',
+          transition: 'all 0.15s',
+          marginBottom: '16px',
+        }}
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv"
+          style={{ display: 'none' }}
+          onChange={e => handleFile(e.target.files[0])}
+        />
+        {importing ? (
+          <div style={{ color: 'var(--accent)', fontSize: '14px' }}>Importing connections…</div>
+        ) : (
+          <>
+            <div style={{ fontSize: '28px', marginBottom: '10px' }}>📥</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Drop your CSV here</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>or click to browse</div>
+          </>
+        )}
+      </div>
+
+      <button className="btn-ghost" style={ghostBtn()} onClick={onSkip}>
+        Skip for now — I'll import later
+      </button>
+    </div>
+  )
+}
+
+// ── Step 2: Targets + context ─────────────────────────────────────────────
+function StepTargets({ onDone }) {
+  const [context, setContext] = useState({ my_role: '', my_company: '', what_i_sell: '', icp_description: '' })
+  const [targets, setTargets] = useState(['', '', ''])
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState(null)
+
+  function setCtx(key) {
+    return e => setContext(p => ({ ...p, [key]: e.target.value }))
+  }
+
+  function setTarget(i, val) {
+    setTargets(prev => { const next = [...prev]; next[i] = val; return next })
+  }
+
+  async function handleSave(e) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      await api.saveAgentContext(context)
+
+      const companies = targets.map(t => t.trim()).filter(Boolean)
+      await Promise.all(companies.map(name => api.addTargetAccount({ company_name: name })))
+
+      onDone(companies.length)
+    } catch {
+      setError('Something went wrong. Please try again.')
+      setSaving(false)
+    }
+  }
+
+  const inputStyle = { width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', boxSizing: 'border-box' }
+  const labelStyle = { fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }
+
+  return (
+    <form onSubmit={handleSave}>
+      <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, margin: '0 0 6px' }}>
+        Who are you trying to reach?
+      </h2>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 22px', lineHeight: 1.5 }}>
+        Your AI agent uses this to surface the best paths and draft personalized intros.
+      </p>
+
+      {error && (
+        <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: 'var(--danger)', marginBottom: '14px' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Target companies */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '10px' }}>
+          Target companies <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(add up to 3 to start)</span>
+        </div>
+        {targets.map((t, i) => (
+          <input
+            key={i}
+            style={{ ...inputStyle, marginBottom: i < 2 ? '8px' : 0 }}
+            placeholder={`e.g. ${['Salesforce', 'HubSpot', 'Stripe'][i]}`}
+            value={t}
+            onChange={e => setTarget(i, e.target.value)}
+          />
+        ))}
+      </div>
+
+      {/* Business context */}
+      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '18px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
+          Your business context
+        </div>
+        <div>
+          <label style={labelStyle}>Your role</label>
+          <input style={inputStyle} placeholder="e.g. VP of Sales" value={context.my_role} onChange={setCtx('my_role')} />
+        </div>
+        <div>
+          <label style={labelStyle}>Your company</label>
+          <input style={inputStyle} placeholder="e.g. Acme Corp" value={context.my_company} onChange={setCtx('my_company')} />
+        </div>
+        <div>
+          <label style={labelStyle}>What you sell</label>
+          <input style={inputStyle} placeholder="e.g. B2B SaaS for finance teams" value={context.what_i_sell} onChange={setCtx('what_i_sell')} />
+        </div>
+        <div>
+          <label style={labelStyle}>Ideal customer</label>
+          <input style={inputStyle} placeholder="e.g. Series B+ fintech companies" value={context.icp_description} onChange={setCtx('icp_description')} />
+        </div>
+      </div>
+
+      <button type="submit" className="btn-primary" style={primaryBtn()} disabled={saving}>
+        {saving ? 'Saving…' : 'Set up my agent →'}
+      </button>
+    </form>
+  )
+}
+
+// ── Step 3: Done ──────────────────────────────────────────────────────────
+function StepReady({ targetCount, onGo }) {
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 0 32px var(--accent-glow)' }}>
+        <svg width="28" height="28" viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="3" fill="white" />
+          <circle cx="9" cy="9" r="7" stroke="white" strokeWidth="1.5" fill="none" />
+          <circle cx="9" cy="2" r="1.5" fill="white" />
+          <circle cx="9" cy="16" r="1.5" fill="white" />
+          <circle cx="2" cy="9" r="1.5" fill="white" />
+          <circle cx="16" cy="9" r="1.5" fill="white" />
+        </svg>
+      </div>
+
+      <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '24px', fontWeight: 700, margin: '0 0 10px' }}>
+        Your agent is ready
+      </h2>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 8px', lineHeight: 1.6 }}>
+        {targetCount > 0
+          ? `Your agent knows your ${targetCount} target ${targetCount === 1 ? 'company' : 'companies'} and is ready to find the fastest paths in.`
+          : 'Your agent is set up and ready to help you navigate your network.'}
+      </p>
+      <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '0 0 28px' }}>
+        Ask it anything — "Who at Salesforce am I closest to?" or "Who should I reach out to first?"
+      </p>
+
+      <button className="btn-primary" style={primaryBtn()} onClick={onGo}>
+        Open my agent →
+      </button>
+    </div>
+  )
+}
+
+// ── Main wizard ───────────────────────────────────────────────────────────
+export default function Onboarding() {
+  const navigate = useNavigate()
+  const [step, setStep] = useState(1)
+  const [targetCount, setTargetCount] = useState(0)
+
+  function completeOnboarding() {
+    localStorage.setItem('onboarding_complete', '1')
+    navigate('/agent', { replace: true })
+  }
+
+  return (
+    <AuthShell step={step} totalSteps={3}>
+      {step === 1 && (
+        <StepImport
+          onDone={() => setStep(2)}
+          onSkip={() => setStep(2)}
+        />
+      )}
+      {step === 2 && (
+        <StepTargets
+          onDone={(count) => { setTargetCount(count); setStep(3) }}
+        />
+      )}
+      {step === 3 && (
+        <StepReady
+          targetCount={targetCount}
+          onGo={completeOnboarding}
+        />
+      )}
+    </AuthShell>
+  )
+}

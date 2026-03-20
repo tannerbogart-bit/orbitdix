@@ -64,8 +64,44 @@ export default function Dashboard() {
     }).catch(() => {})
   }, [])
 
+  const onboardingDone = localStorage.getItem('onboarding_complete') === '1'
+  const showSetupNudge = !onboardingDone && stats.connections !== '…' && (stats.connections ?? 0) === 0
+
   return (
     <div className="page-pad" style={{ maxWidth: '900px' }}>
+      {/* Setup nudge — shown when onboarding was skipped and network is still empty */}
+      {showSetupNudge && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(124,110,224,0.18) 0%, rgba(96,165,250,0.08) 100%)',
+            border: '1px solid var(--accent)',
+            borderRadius: '14px',
+            padding: '20px 24px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '18px',
+          }}
+        >
+          <div style={{ fontSize: '32px', flexShrink: 0 }}>🚀</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>
+              Finish setting up OrbitSix
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Import your LinkedIn network and set your target accounts — your agent will immediately find the best paths in.
+            </div>
+          </div>
+          <button
+            className="btn-primary"
+            style={{ fontSize: '13px', padding: '9px 16px', flexShrink: 0 }}
+            onClick={() => navigate('/onboarding')}
+          >
+            Complete setup →
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
         <h1

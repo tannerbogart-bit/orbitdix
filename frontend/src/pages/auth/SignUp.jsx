@@ -39,7 +39,7 @@ export default function SignUp() {
         return
       }
       localStorage.setItem('access_token', data.access_token)
-      navigate('/auth/confirmed', { replace: true })
+      navigate('/onboarding', { replace: true })
     } catch {
       setError('Could not reach server. Is Flask running?')
     } finally {
