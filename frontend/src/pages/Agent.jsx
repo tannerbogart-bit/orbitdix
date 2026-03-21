@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api } from '../api/client'
 
 const TOOL_LABELS = {
@@ -41,6 +42,15 @@ export default function Agent() {
 
   const messagesEndRef = useRef(null)
   const abortRef       = useRef(null)
+  const location       = useLocation()
+
+  // Pre-fill input when navigated from Targets page with a prompt
+  useEffect(() => {
+    if (location.state?.prompt) {
+      setInput(location.state.prompt)
+      window.history.replaceState({}, '')  // clear state so refresh doesn't re-fire
+    }
+  }, [])
 
   useEffect(() => {
     api.getAgentContext().then(data => {

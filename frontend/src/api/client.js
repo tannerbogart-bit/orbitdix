@@ -68,14 +68,17 @@ export const api = {
   draftMessage: (payload) => req('POST', '/draft-message', payload),
 
   // Agent
-  getAgentContext:     ()     => req('GET',    '/agent/context'),
-  saveAgentContext:    (data) => req('PUT',    '/agent/context', data),
-  getTargetAccounts:   ()     => req('GET',    '/agent/targets'),
-  addTargetAccount:    (data) => req('POST',   '/agent/targets', data),
-  deleteTargetAccount: (id)   => req('DELETE', `/agent/targets/${id}`),
-  getAgentHistory:     ()     => req('GET',    '/agent/history'),
-  clearAgentHistory:   ()     => req('DELETE', '/agent/history'),
-  getAgentSuggestions: ()     => req('GET',    '/agent/suggestions'),
+  getAgentContext:       ()       => req('GET',    '/agent/context'),
+  saveAgentContext:      (data)   => req('PUT',    '/agent/context', data),
+  getTargetAccounts:     ()       => req('GET',    '/agent/targets'),
+  addTargetAccount:      (data)   => req('POST',   '/agent/targets', data),
+  updateTargetAccount:   (id, d)  => req('PATCH',  `/agent/targets/${id}`, d),
+  deleteTargetAccount:   (id)     => req('DELETE', `/agent/targets/${id}`),
+  bulkAddTargets:        (names)  => req('POST',   '/agent/targets/bulk', { companies: names }),
+  getTargetsIntelligence: ()      => req('GET',    '/targets/intelligence'),
+  getAgentHistory:       ()       => req('GET',    '/agent/history'),
+  clearAgentHistory:     ()       => req('DELETE', '/agent/history'),
+  getAgentSuggestions:   ()       => req('GET',    '/agent/suggestions'),
 
   // Billing
   getBillingPlan:  ()     => req('GET',  '/billing/plan'),

@@ -550,7 +550,10 @@ def list_targets():
     user_id = int(get_jwt_identity())
     targets = TargetAccount.query.filter_by(user_id=user_id).order_by(TargetAccount.created_at.desc()).all()
     return jsonify(targets=[
-        {"id": t.id, "company_name": t.company_name, "reason": t.reason} for t in targets
+        {
+            "id": t.id, "company_name": t.company_name, "reason": t.reason,
+            "website_url": t.website_url, "linkedin_url": t.linkedin_url,
+        } for t in targets
     ])
 
 
@@ -571,10 +574,36 @@ def add_target():
         tenant_id=user.tenant_id,
         company_name=company_name,
         reason=(data.get("reason") or "").strip(),
+        website_url=(data.get("website_url") or "").strip() or None,
+        linkedin_url=(data.get("linkedin_url") or "").strip() or None,
     )
     db.session.add(target)
     db.session.commit()
-    return jsonify(id=target.id, company_name=target.company_name, reason=target.reason), 201
+    return jsonify(
+        id=target.id, company_name=target.company_name, reason=target.reason,
+        website_url=target.website_url, linkedin_url=target.linkedin_url,
+    ), 201
+
+
+@bp.patch("/api/agent/targets/<int:target_id>")
+@jwt_required()
+def update_target(target_id):
+    user_id = int(get_jwt_identity())
+    target = TargetAccount.query.filter_by(id=target_id, user_id=user_id).first()
+    if not target:
+        return jsonify(error="Not found"), 404
+    data = request.get_json(silent=True) or {}
+    if "reason" in data:
+        target.reason = (data["reason"] or "").strip() or None
+    if "website_url" in data:
+        target.website_url = (data["website_url"] or "").strip() or None
+    if "linkedin_url" in data:
+        target.linkedin_url = (data["linkedin_url"] or "").strip() or None
+    db.session.commit()
+    return jsonify(
+        id=target.id, company_name=target.company_name, reason=target.reason,
+        website_url=target.website_url, linkedin_url=target.linkedin_url,
+    )
 
 
 @bp.delete("/api/agent/targets/<int:target_id>")
@@ -587,6 +616,129 @@ def delete_target(target_id):
     db.session.delete(target)
     db.session.commit()
     return "", 204
+
+
+@bp.post("/api/agent/targets/bulk")
+@jwt_required()
+def bulk_add_targets():
+    """Accept a list of company names and add any that don't already exist."""
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    data = request.get_json(silent=True) or {}
+    names = [n.strip() for n in (data.get("companies") or []) if n.strip()]
+    if not names:
+        return jsonify(error="companies list is required"), 400
+
+    existing_names = {
+        t.company_name.lower()
+        for t in TargetAccount.query.filter_by(user_id=user_id).all()
+    }
+    added = []
+    skipped = []
+    for name in names[:50]:  # cap at 50 per bulk import
+        if name.lower() in existing_names:
+            skipped.append(name)
+            continue
+        target = TargetAccount(
+            user_id=user_id, tenant_id=user.tenant_id, company_name=name
+        )
+        db.session.add(target)
+        existing_names.add(name.lower())
+        added.append(name)
+    db.session.commit()
+    return jsonify(added=added, skipped=skipped, added_count=len(added)), 201
+
+
+@bp.get("/api/targets/intelligence")
+@jwt_required()
+def targets_intelligence():
+    """
+    REST version of gap analysis — returns per-target intelligence for the UI.
+    Each target gets: status, direct connections, bridge contacts, paths count.
+    """
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    tenant_id = user.tenant_id
+
+    targets = TargetAccount.query.filter_by(user_id=user_id).order_by(TargetAccount.created_at.desc()).all()
+    if not targets:
+        return jsonify(targets=[], summary={"total": 0, "connected": 0, "bridgeable": 0, "gap": 0})
+
+    edges = Edge.query.filter_by(tenant_id=tenant_id).all()
+    adjacency: dict[int, list[int]] = {}
+    for edge in edges:
+        adjacency.setdefault(edge.from_person_id, []).append(edge.to_person_id)
+        adjacency.setdefault(edge.to_person_id, []).append(edge.from_person_id)
+
+    self_person = Person.query.filter_by(user_id=user_id, is_self=True).first()
+    direct_neighbor_ids = set(adjacency.get(self_person.id, [])) if self_person else set()
+
+    all_people = Person.query.filter_by(tenant_id=tenant_id, is_self=False).all()
+    people_by_id = {p.id: p for p in all_people}
+
+    company_index: dict[str, list[int]] = {}
+    for p in all_people:
+        if p.company:
+            company_index.setdefault(p.company.lower(), []).append(p.id)
+
+    results = []
+    for t in targets:
+        cn_lower = t.company_name.lower()
+        at_company_ids = set(company_index.get(cn_lower, []))
+        direct_ids = [pid for pid in at_company_ids if pid in direct_neighbor_ids]
+
+        bridges = []
+        for nid in direct_neighbor_ids:
+            if nid in at_company_ids:
+                continue
+            overlap = set(adjacency.get(nid, [])) & at_company_ids
+            if overlap:
+                p = people_by_id.get(nid)
+                if p:
+                    # find one person at the company this bridge knows
+                    sample_target = people_by_id.get(next(iter(overlap)))
+                    bridges.append({
+                        "id": p.id,
+                        "name": f"{p.first_name or ''} {p.last_name or ''}".strip(),
+                        "title": p.title,
+                        "company": p.company,
+                        "connects_to_count": len(overlap),
+                        "connects_to_name": f"{sample_target.first_name or ''} {sample_target.last_name or ''}".strip() if sample_target else None,
+                        "connects_to_title": sample_target.title if sample_target else None,
+                    })
+        bridges.sort(key=lambda x: -x["connects_to_count"])
+
+        if direct_ids:
+            status = "connected"
+        elif bridges:
+            status = "bridgeable"
+        else:
+            status = "gap"
+
+        results.append({
+            "id": t.id,
+            "company_name": t.company_name,
+            "reason": t.reason,
+            "website_url": t.website_url,
+            "linkedin_url": t.linkedin_url,
+            "status": status,
+            "direct_count": len(direct_ids),
+            "direct_people": [
+                {"name": f"{people_by_id[pid].first_name or ''} {people_by_id[pid].last_name or ''}".strip(),
+                 "title": people_by_id[pid].title, "id": pid}
+                for pid in direct_ids if pid in people_by_id
+            ],
+            "bridge_count": len(bridges),
+            "top_bridges": bridges[:3],
+        })
+
+    summary = {
+        "total": len(results),
+        "connected": sum(1 for r in results if r["status"] == "connected"),
+        "bridgeable": sum(1 for r in results if r["status"] == "bridgeable"),
+        "gap": sum(1 for r in results if r["status"] == "gap"),
+    }
+    return jsonify(targets=results, summary=summary)
 
 
 # ── CONVERSATION HISTORY ──────────────────────────────────────────────────────

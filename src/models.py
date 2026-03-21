@@ -158,6 +158,8 @@ class TargetAccount(db.Model):
     tenant_id    = db.Column(db.Integer,     db.ForeignKey("tenants.id",  ondelete="CASCADE"), nullable=False)
     company_name = db.Column(db.String(255), nullable=False)
     reason       = db.Column(db.Text,        nullable=True)
+    website_url  = db.Column(db.String(500), nullable=True)
+    linkedin_url = db.Column(db.String(500), nullable=True)
     created_at   = db.Column(db.DateTime,    default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User", backref=db.backref("target_accounts", lazy=True, cascade="all, delete-orphan", passive_deletes=True))

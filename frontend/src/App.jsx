@@ -32,6 +32,7 @@ import SavedPaths  from './pages/SavedPaths'
 import Settings    from './pages/Settings'
 import Team        from './pages/Team'
 import Activity    from './pages/Activity'
+import Targets     from './pages/Targets'
 
 export default function App() {
   return (
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/network"   element={<MyNetwork />}  />
           <Route path="/saved"     element={<SavedPaths />} />
           <Route path="/settings"  element={<Settings />}   />
+          <Route path="/targets"   element={<Targets />}    />
           <Route path="/team"      element={<Team />}       />
           <Route path="/activity"  element={<Activity />}   />
         </Route>
