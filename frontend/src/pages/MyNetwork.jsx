@@ -153,7 +153,7 @@ export default function MyNetwork() {
             {loading ? 'Loading…' : `${others.length.toLocaleString()} people in your extended orbit`}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             className="btn-ghost"
             style={{ fontSize: '13px', padding: '9px 16px' }}

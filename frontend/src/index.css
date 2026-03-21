@@ -316,6 +316,29 @@ h1, h2, h3, h4, h5, h6, .font-display {
   }
 }
 
+/* Stack side-by-side inputs on mobile */
+.input-row-2 {
+  display: flex;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .input-row-2 {
+    flex-direction: column;
+  }
+  /* Agent chat padding */
+  .agent-chat-input-bar {
+    padding: 12px 16px 16px !important;
+  }
+  /* Dashboard banner button group */
+  .banner-actions {
+    flex-wrap: wrap;
+  }
+  /* Shrink large headings */
+  .page-h1 {
+    font-size: 22px !important;
+  }
+}
+
 @media (min-width: 641px) and (max-width: 900px) {
   .stats-grid-3 {
     grid-template-columns: repeat(2, 1fr);

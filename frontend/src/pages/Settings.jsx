@@ -166,7 +166,7 @@ export default function Settings() {
           <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <StatusBanner error={profileError} success={profileSaved ? 'Profile saved.' : null} />
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="input-row-2" style={{ display: 'flex', gap: '10px' }}>
               <Field label="First name">
                 <input {...inp} value={profile.firstName} onChange={e => setProfile(p => ({ ...p, firstName: e.target.value }))} required autoComplete="given-name" />
               </Field>

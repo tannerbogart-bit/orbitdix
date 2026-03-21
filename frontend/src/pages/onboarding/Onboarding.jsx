@@ -263,7 +263,7 @@ function StepTargets({ onDone }) {
       {/* About you */}
       <div style={{ marginBottom: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>About you</div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="input-row-2" style={{ display: 'flex', gap: '8px' }}>
           <div style={{ flex: 1 }}>
             <label {...lbl}>Your role</label>
             <input {...inp} placeholder="e.g. VP of Sales" value={profile.title} onChange={e => setProfile(p => ({ ...p, title: e.target.value }))} />

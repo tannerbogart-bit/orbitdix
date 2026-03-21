@@ -6,7 +6,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from .email import send_password_reset, send_verification_email
+from .email import send_password_reset, send_verification_email, send_welcome_email
 from .models import Person, Tenant, User, db
 
 bp = Blueprint("auth", __name__)
@@ -24,6 +24,9 @@ def signup():
 
     if len(password) < 8:
         return jsonify(error="Password must be at least 8 characters"), 400
+
+    if not any(c.isdigit() or not c.isalpha() for c in password):
+        return jsonify(error="Password must contain at least one number or special character"), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify(error="Email already registered"), 409
@@ -54,8 +57,12 @@ def signup():
 
     access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(hours=24))
 
-    # Send verification email (non-blocking — failure doesn't break signup)
+    # Send emails (non-blocking — failure doesn't break signup)
     _send_verification(user, current_app)
+    try:
+        send_welcome_email(user.email, data.get("first_name", ""))
+    except Exception:
+        pass
 
     return (
         jsonify(

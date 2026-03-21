@@ -13,11 +13,27 @@ export default function SignUp() {
     return (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
   }
 
+  function passwordStrength(pw) {
+    if (!pw) return null
+    const hasLength  = pw.length >= 8
+    const hasComplex = /[\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw)
+    if (!hasLength)  return { label: 'Too short',  color: 'var(--danger)',  pct: 20 }
+    if (!hasComplex) return { label: 'Add a number or symbol', color: 'var(--warning)', pct: 55 }
+    if (pw.length < 12) return { label: 'Good',   color: 'var(--success)', pct: 80 }
+    return { label: 'Strong', color: 'var(--success)', pct: 100 }
+  }
+
+  const strength = passwordStrength(form.password)
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
     if (form.password.length < 8) {
       setError('Password must be at least 8 characters.')
+      return
+    }
+    if (!/[\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(form.password)) {
+      setError('Password must contain at least one number or special character.')
       return
     }
     setLoading(true)
@@ -110,18 +126,28 @@ export default function SignUp() {
           required
           autoComplete="email"
         />
-        <input
-          className="input"
-          type="password"
-          placeholder="Password (8+ characters)"
-          value={form.password}
-          onChange={set('password')}
-          required
-          autoComplete="new-password"
-        />
+        <div>
+          <input
+            className="input"
+            type="password"
+            placeholder="Password (8+ characters, include a number)"
+            value={form.password}
+            onChange={set('password')}
+            required
+            autoComplete="new-password"
+          />
+          {strength && (
+            <div style={{ marginTop: '6px' }}>
+              <div style={{ height: '3px', background: 'var(--bg-input)', borderRadius: '99px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${strength.pct}%`, background: strength.color, borderRadius: '99px', transition: 'width 0.25s, background 0.25s' }} />
+              </div>
+              <div style={{ fontSize: '11px', color: strength.color, marginTop: '4px' }}>{strength.label}</div>
+            </div>
+          )}
+        </div>
         <button
           type="submit"
-          className="btn-ghost"
+          className="btn-primary"
           style={{ width: '100%', justifyContent: 'center' }}
           disabled={loading}
         >

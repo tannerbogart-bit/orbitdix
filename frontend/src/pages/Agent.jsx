@@ -318,47 +318,36 @@ export default function Agent() {
 
           {/* Target Accounts */}
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif', padding: '0 2px 6px' }}>
-              Target Accounts
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px 6px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif' }}>
+                Target Accounts
+              </div>
+              <a href="/targets" style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', fontFamily: 'DM Sans, sans-serif' }}>
+                Manage →
+              </a>
             </div>
 
-            {targets.length === 0 && (
+            {targets.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 2px', fontFamily: 'DM Sans, sans-serif' }}>
-                No targets yet. Add companies you want to reach.
+                No targets yet.{' '}
+                <a href="/targets" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Add companies →</a>
               </div>
-            )}
-
-            {targets.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', marginBottom: '4px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {t.company_name}
-                  </div>
-                  {t.reason && (
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {t.reason}
+            ) : (
+              targets.map(t => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', marginBottom: '4px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {t.company_name}
                     </div>
-                  )}
+                  </div>
+                  <button onClick={() => removeTarget(t.id)} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', lineHeight: 1, flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </button>
                 </div>
-                <button onClick={() => removeTarget(t.id)} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', lineHeight: 1, flexShrink: 0 }}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-
-            <form onSubmit={addTarget} style={{ marginTop: '6px', display: 'flex', gap: '4px' }}>
-              <input
-                value={newCompany}
-                onChange={e => setNewCompany(e.target.value)}
-                placeholder="Add company…"
-                style={{ flex: 1, padding: '6px 8px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '12px', fontFamily: 'DM Sans, sans-serif', minWidth: 0 }}
-              />
-              <button type="submit" disabled={addingTarget || !newCompany.trim()} style={{ padding: '6px 10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: addingTarget || !newCompany.trim() ? 'default' : 'pointer', opacity: !newCompany.trim() ? 0.5 : 1, fontFamily: 'DM Sans, sans-serif', flexShrink: 0 }}>
-                +
-              </button>
-            </form>
+              ))
+            )}
           </div>
 
           {/* Clear history */}
@@ -537,7 +526,7 @@ export default function Agent() {
         </div>
 
         {/* Input area */}
-        <div style={{ padding: '16px 32px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-sidebar)' }}>
+        <div className="agent-chat-input-bar" style={{ padding: '16px 32px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-sidebar)' }}>
           <div style={{ display: 'flex', gap: '10px', maxWidth: '720px', margin: '0 auto', alignItems: 'flex-end' }}>
             <textarea
               value={input}

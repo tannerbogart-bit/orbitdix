@@ -167,7 +167,7 @@ export default function Dashboard() {
               Install the OrbitSix extension to automatically keep your network map up to date.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <div className="banner-actions" style={{ display: 'flex', gap: '8px' }}>
             <button
               className="btn-primary"
               style={{ fontSize: '13px', padding: '8px 14px' }}

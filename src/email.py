@@ -11,6 +11,31 @@ returned in the API response body instead.
 import os
 
 
+def send_welcome_email(to_email: str, first_name: str) -> bool:
+    """Send a welcome email after signup."""
+    api_key = os.getenv("RESEND_API_KEY", "")
+    if not api_key:
+        return False
+
+    try:
+        import resend
+        resend.api_key = api_key
+
+        from_email = os.getenv("FROM_EMAIL", "OrbitSix <noreply@orbitsix.com>")
+        app_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+        resend.Emails.send({
+            "from": from_email,
+            "to": [to_email],
+            "subject": "Welcome to OrbitSix 👋",
+            "html": _welcome_email_html(first_name, app_url),
+        })
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send welcome email: {e}", flush=True)
+        return False
+
+
 def send_password_reset(to_email: str, reset_link: str) -> bool:
     """
     Send a password reset email.
@@ -65,6 +90,69 @@ def send_verification_email(to_email: str, verify_link: str) -> bool:
     except Exception as e:
         print(f"[email] Failed to send verification email: {e}", flush=True)
         return False
+
+
+def _welcome_email_html(first_name: str, app_url: str) -> str:
+    name = first_name or "there"
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f14;font-family:'DM Sans',Arial,sans-serif;color:#e2e2e8;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f14;padding:40px 0;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#1a1a2e;border:1px solid #2a2a3e;border-radius:16px;padding:40px 36px;">
+        <tr><td>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+            <tr>
+              <td style="background:#7c6ee0;width:36px;height:36px;border-radius:9px;text-align:center;vertical-align:middle;">
+                <span style="color:#fff;font-size:18px;font-weight:bold;">⬡</span>
+              </td>
+              <td style="padding-left:10px;font-size:18px;font-weight:700;color:#e2e2e8;vertical-align:middle;">OrbitSix</td>
+            </tr>
+          </table>
+          <h1 style="font-size:24px;font-weight:700;color:#e2e2e8;margin:0 0 12px;">Welcome, {name} 👋</h1>
+          <p style="font-size:15px;color:#8888a8;line-height:1.6;margin:0 0 28px;">
+            You're in. OrbitSix maps your professional network so you can reach anyone through a warm introduction — no cold outreach needed.
+          </p>
+          <p style="font-size:14px;font-weight:600;color:#e2e2e8;margin:0 0 14px;">Get started in 3 steps:</p>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;width:100%;">
+            <tr><td style="padding:10px 0;border-bottom:1px solid #2a2a3e;">
+              <span style="color:#7c6ee0;font-weight:700;">1.</span>
+              <span style="color:#e2e2e8;margin-left:8px;">Import your LinkedIn network</span>
+              <span style="color:#8888a8;font-size:13px;margin-left:6px;">— upload a CSV or install the Chrome extension</span>
+            </td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #2a2a3e;">
+              <span style="color:#7c6ee0;font-weight:700;">2.</span>
+              <span style="color:#e2e2e8;margin-left:8px;">Add your target companies</span>
+              <span style="color:#8888a8;font-size:13px;margin-left:6px;">— the companies you want to break into</span>
+            </td></tr>
+            <tr><td style="padding:10px 0;">
+              <span style="color:#7c6ee0;font-weight:700;">3.</span>
+              <span style="color:#e2e2e8;margin-left:8px;">Ask your AI agent</span>
+              <span style="color:#8888a8;font-size:13px;margin-left:6px;">— it maps your warmest path and drafts the intro</span>
+            </td></tr>
+          </table>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+            <tr>
+              <td style="background:#7c6ee0;border-radius:8px;">
+                <a href="{app_url}/dashboard"
+                   style="display:inline-block;padding:14px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">
+                  Go to your dashboard →
+                </a>
+              </td>
+            </tr>
+          </table>
+          <hr style="border:none;border-top:1px solid #2a2a3e;margin:0 0 24px;">
+          <p style="font-size:12px;color:#55556a;margin:0;">
+            Questions? Just reply to this email.<br><br>
+            <a href="{app_url}" style="color:#55556a;">orbitsix.com</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
 
 
 def _verify_email_html(verify_link: str, app_url: str) -> str:

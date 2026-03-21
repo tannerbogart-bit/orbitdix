@@ -103,7 +103,7 @@ function AddTargetForm({ onAdded }) {
             required
             style={{ fontSize: '14px' }}
           />
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="input-row-2" style={{ display: 'flex', gap: '8px' }}>
             <input
               className="input"
               placeholder="Website URL (optional)"
