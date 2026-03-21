@@ -55,6 +55,7 @@ export default function Dashboard() {
   const hour     = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [targetIntel, setTargetIntel] = useState(null)
 
   useEffect(() => {
     api.getStats().then(setStats).catch(() => {})
@@ -65,6 +66,9 @@ export default function Dashboard() {
         setUserName(self.first_name)
         localStorage.setItem('user_first_name', self.first_name)
       }
+    }).catch(() => {})
+    api.getTargetsIntelligence().then(d => {
+      if (d.summary?.total > 0) setTargetIntel(d)
     }).catch(() => {})
   }, [])
 
@@ -188,6 +192,75 @@ export default function Dashboard() {
         <StatCard label="Paths Found"      value={stats.paths_found?.toLocaleString()     ?? '—'} />
         <StatCard label="Messages Drafted" value={stats.messages_drafted?.toLocaleString() ?? '—'} />
       </div>
+
+      {/* Target account intelligence */}
+      {targetIntel && (() => {
+        const { summary, targets } = targetIntel
+        // Pick the best actionable target: bridgeable first, then connected
+        const actionable = targets.find(t => t.status === 'bridgeable' && t.top_bridges?.length > 0)
+          || targets.find(t => t.status === 'connected' && t.direct_people?.length > 0)
+        return (
+          <div className="card" style={{ padding: '20px 24px', marginBottom: '28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '15px' }}>
+                Target Account Intelligence
+              </div>
+              <button className="btn-ghost" style={{ fontSize: '12px', padding: '5px 12px' }} onClick={() => navigate('/targets')}>
+                View all →
+              </button>
+            </div>
+
+            {/* Summary pills */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'rgba(52,211,153,0.1)', color: 'var(--success)', fontWeight: 600 }}>
+                {summary.connected} connected
+              </span>
+              <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'rgba(251,191,36,0.1)', color: 'var(--warning)', fontWeight: 600 }}>
+                {summary.bridgeable} bridgeable
+              </span>
+              {summary.gap > 0 && (
+                <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'rgba(248,113,113,0.08)', color: 'var(--danger)', fontWeight: 600 }}>
+                  {summary.gap} no warm path
+                </span>
+              )}
+            </div>
+
+            {/* Best action today */}
+            {actionable && (
+              <div style={{ background: 'var(--bg-input)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ fontSize: '20px', flexShrink: 0 }}>{actionable.status === 'bridgeable' ? '⚡' : '✅'}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    {actionable.status === 'bridgeable'
+                      ? `Warm path into ${actionable.company_name} via ${actionable.top_bridges[0].name}`
+                      : `You have ${actionable.direct_count} direct connection${actionable.direct_count !== 1 ? 's' : ''} at ${actionable.company_name}`
+                    }
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {actionable.status === 'bridgeable'
+                      ? `${actionable.top_bridges[0].name}${actionable.top_bridges[0].title ? ` (${actionable.top_bridges[0].title})` : ''} knows ${actionable.top_bridges[0].connects_to_count} person${actionable.top_bridges[0].connects_to_count !== 1 ? 's' : ''} there.`
+                      : `${actionable.direct_people[0]?.name}${actionable.direct_people[0]?.title ? ` · ${actionable.direct_people[0].title}` : ''}`
+                    }
+                  </div>
+                </div>
+                <button
+                  className="btn-primary"
+                  style={{ fontSize: '12px', padding: '7px 14px', flexShrink: 0 }}
+                  onClick={() => navigate('/agent', {
+                    state: {
+                      prompt: actionable.status === 'bridgeable'
+                        ? `Help me get introduced to someone at ${actionable.company_name} through ${actionable.top_bridges[0].name}. Draft the ask.`
+                        : `I have direct connections at ${actionable.company_name}. Who should I reach out to first?`
+                    }
+                  })}
+                >
+                  Ask agent →
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Free plan usage meter */}
       {stats.paths_limit && (

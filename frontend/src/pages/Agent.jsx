@@ -430,26 +430,69 @@ export default function Agent() {
                 </div>
               )}
 
-              {/* Starter prompts grid */}
-              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>
-                Or try one of these
+              {/* Capability guide */}
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '12px' }}>
+                What I can do for you
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
-                  'Who in my network works at Salesforce?',
-                  'Find a path to someone at OpenAI',
-                  'What companies are well represented in my network?',
-                  'Who should I reach out to first based on my business goals?',
-                ].map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => sendMessage(s)}
-                    style={{ padding: '12px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.15s, color 0.15s', lineHeight: 1.4 }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
-                  >
-                    {s}
-                  </button>
+                  {
+                    icon: '🔗',
+                    title: 'Find warm paths',
+                    desc: 'Discover who in your network can introduce you to anyone.',
+                    prompts: [
+                      'Find a path to someone at Stripe',
+                      'Who can get me into HubSpot?',
+                    ],
+                  },
+                  {
+                    icon: '⚡',
+                    title: 'Gap analysis',
+                    desc: 'See which targets you have no warm route into — and who bridges the gap.',
+                    prompts: [
+                      'Analyze gaps across all my target accounts',
+                      'Which targets have no warm path yet?',
+                    ],
+                  },
+                  {
+                    icon: '🔍',
+                    title: 'Research & profile',
+                    desc: 'Learn who you know at any company and how strong those connections are.',
+                    prompts: [
+                      'Who in my network works at Salesforce?',
+                      'What companies are best represented in my network?',
+                    ],
+                  },
+                  {
+                    icon: '✉️',
+                    title: 'Draft intro messages',
+                    desc: 'Write a personalized ask through your mutual connection — ready to send.',
+                    prompts: [
+                      'Draft an intro request through my connection at OpenAI',
+                      'Write a warm intro ask for my best path into Stripe',
+                    ],
+                  },
+                ].map((cap, ci) => (
+                  <div key={ci} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '16px' }}>{cap.icon}</span>
+                      <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>{cap.title}</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.5 }}>{cap.desc}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {cap.prompts.map((p, pi) => (
+                        <button
+                          key={pi}
+                          onClick={() => sendMessage(p)}
+                          style={{ padding: '7px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '12px', fontFamily: 'DM Sans, sans-serif', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.15s, color 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                        >
+                          → {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
