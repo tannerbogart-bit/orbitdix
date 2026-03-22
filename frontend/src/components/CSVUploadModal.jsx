@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
 const BATCH_SIZE = 200
@@ -76,21 +77,27 @@ function rowToPerson(row) {
 }
 
 export default function CSVUploadModal({ onImport, onClose }) {
+  const navigate     = useNavigate()
   const fileInputRef = useRef(null)
   const [rows, setRows]           = useState(null)   // parsed people array
   const [fileName, setFileName]   = useState('')
+  const [dragging, setDragging]   = useState(false)
   const [error, setError]         = useState('')
   const [importing, setImporting] = useState(false)
   const [progress, setProgress]   = useState({ done: 0, total: 0 })
   const [result, setResult]       = useState(null)   // { imported, skipped }
 
-  function handleFile(e) {
-    const file = e.target.files?.[0]
+  function processFile(file) {
     if (!file) return
     setError('')
     setRows(null)
     setResult(null)
     setFileName(file.name)
+
+    if (file.name.endsWith('.zip')) {
+      setError('LinkedIn sends a zip file — unzip it first, then upload the Connections.csv inside.')
+      return
+    }
 
     const reader = new FileReader()
     reader.onload = (evt) => {
@@ -98,7 +105,7 @@ export default function CSVUploadModal({ onImport, onClose }) {
         const parsed = parseCSV(evt.target.result)
         const people = parsed.map(rowToPerson).filter(Boolean)
         if (people.length === 0) {
-          setError('No valid people found. Make sure it is a LinkedIn connections CSV or has First Name / Last Name columns.')
+          setError("No contacts found. Make sure you're uploading Connections.csv from your LinkedIn data export.")
           return
         }
         setRows(people)
@@ -107,6 +114,16 @@ export default function CSVUploadModal({ onImport, onClose }) {
       }
     }
     reader.readAsText(file)
+  }
+
+  function handleFile(e) {
+    processFile(e.target.files?.[0])
+  }
+
+  function handleDrop(e) {
+    e.preventDefault()
+    setDragging(false)
+    processFile(e.dataTransfer.files?.[0])
   }
 
   async function handleImport() {
@@ -164,48 +181,69 @@ export default function CSVUploadModal({ onImport, onClose }) {
             <div style={{ padding: '12px 14px', background: 'var(--bg-input)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
               <strong style={{ color: 'var(--text-primary)' }}>Get your LinkedIn connections CSV:</strong>
               <ol style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
-                <li>LinkedIn → Settings &amp; Privacy</li>
-                <li>Data privacy → Get a copy of your data</li>
-                <li>Select <em>Connections</em> → Request archive</li>
-                <li>Download and upload <code>Connections.csv</code> here</li>
+                <li>LinkedIn → Settings &amp; Privacy → Data Privacy</li>
+                <li>Get a copy of your data → select <em>Connections</em> only</li>
+                <li>Request archive — LinkedIn emails it within up to 30 minutes</li>
+                <li>Unzip the download, then upload <strong>Connections.csv</strong> here</li>
               </ol>
             </div>
 
-            {/* File input */}
+            {/* Drop zone */}
             <div
+              onDragOver={e => { e.preventDefault(); setDragging(true) }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
               style={{
-                border: `2px dashed ${fileName ? 'var(--accent)' : 'var(--border)'}`,
+                border: `2px dashed ${dragging ? 'var(--accent)' : fileName ? 'var(--accent)' : 'var(--border)'}`,
                 borderRadius: '10px',
                 padding: '28px',
                 textAlign: 'center',
                 cursor: 'pointer',
-                transition: 'border-color 0.15s',
+                background: dragging ? 'var(--accent-dim)' : 'transparent',
+                transition: 'all 0.15s',
                 marginBottom: '14px',
               }}
-              onClick={() => fileInputRef.current?.click()}
             >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.zip"
                 style={{ display: 'none' }}
                 onChange={handleFile}
               />
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 10px', display: 'block', color: 'var(--accent)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto 10px', display: 'block', color: dragging ? 'var(--accent)' : 'var(--text-muted)' }}>
                 <path d="M12 16V8M12 8l-3 3M12 8l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" />
               </svg>
               {fileName ? (
                 <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>{fileName}</div>
               ) : (
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Click to choose a CSV file</div>
+                <>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>Drop Connections.csv here</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>or click to browse</div>
+                </>
               )}
             </div>
 
             {/* Preview */}
             {rows && (
-              <div style={{ padding: '10px 14px', background: 'rgba(124,110,224,0.08)', border: '1px solid var(--accent)', borderRadius: '8px', marginBottom: '14px', fontSize: '13px', color: 'var(--text-primary)' }}>
-                Found <strong>{rows.length.toLocaleString()}</strong> connections ready to import
+              <div style={{ padding: '12px 14px', background: 'rgba(124,110,224,0.08)', border: '1px solid var(--accent)', borderRadius: '8px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600, marginBottom: '6px' }}>
+                  {rows.length.toLocaleString()} connections found
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {rows.slice(0, 3).map((p, i) => (
+                    <div key={i} style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      {p.first_name} {p.last_name}{p.company ? ` · ${p.company}` : ''}
+                    </div>
+                  ))}
+                  {rows.length > 3 && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      + {(rows.length - 3).toLocaleString()} more
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -245,19 +283,32 @@ export default function CSVUploadModal({ onImport, onClose }) {
         ) : (
           /* Success state */
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(124,110,224,0.12)', border: '2px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(52,211,153,0.1)', border: '2px solid var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M5 12l5 5L19 7" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 12l5 5L19 7" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h4 style={{ fontFamily: 'Syne, sans-serif', fontSize: '17px', fontWeight: 700, margin: '0 0 8px' }}>Import complete</h4>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 20px' }}>
-              <strong style={{ color: 'var(--text-primary)' }}>{result.imported.toLocaleString()}</strong> imported &nbsp;·&nbsp;
-              <strong style={{ color: 'var(--text-muted)' }}>{result.skipped.toLocaleString()}</strong> skipped (already in network)
+            <h4 style={{ fontFamily: 'Syne, sans-serif', fontSize: '17px', fontWeight: 700, margin: '0 0 8px' }}>
+              {result.imported.toLocaleString()} connections imported
+            </h4>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 4px' }}>
+              {result.skipped > 0 && `${result.skipped.toLocaleString()} skipped — already in your network.`}
             </p>
-            <button className="btn-primary" style={{ justifyContent: 'center' }} onClick={onClose}>
-              Done
-            </button>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '0 0 24px' }}>
+              OrbitSix can now map paths to anyone in your extended network.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                className="btn-primary"
+                style={{ justifyContent: 'center', width: '100%' }}
+                onClick={() => { onClose(); navigate('/find-path') }}
+              >
+                Find a path now →
+              </button>
+              <button className="btn-ghost" style={{ justifyContent: 'center', width: '100%' }} onClick={onClose}>
+                Back to my network
+              </button>
+            </div>
           </div>
         )}
       </div>

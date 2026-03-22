@@ -5,6 +5,8 @@ import ErrorBoundary from './components/ErrorBoundary'
 // Public pages
 import Pricing        from './pages/Pricing'
 import PricingSuccess from './pages/PricingSuccess'
+import Terms          from './pages/Terms'
+import Privacy        from './pages/Privacy'
 
 // Auth flow
 import SignIn            from './pages/auth/SignIn'
@@ -33,6 +35,7 @@ import Settings    from './pages/Settings'
 import Team        from './pages/Team'
 import Activity    from './pages/Activity'
 import Targets     from './pages/Targets'
+import Outreach    from './pages/Outreach'
 
 export default function App() {
   return (
@@ -43,6 +46,8 @@ export default function App() {
         <Route path="/"                       element={<Pricing />}         />
         <Route path="/pricing"                element={<Pricing />}         />
         <Route path="/pricing/success"        element={<PricingSuccess />}  />
+        <Route path="/terms"                  element={<Terms />}           />
+        <Route path="/privacy"               element={<Privacy />}         />
 
         {/* Auth / onboarding */}
         <Route path="/auth/signin"              element={<SignIn />}            />
@@ -67,6 +72,7 @@ export default function App() {
           <Route path="/saved"     element={<SavedPaths />} />
           <Route path="/settings"  element={<Settings />}   />
           <Route path="/targets"   element={<Targets />}    />
+          <Route path="/outreach"  element={<Outreach />}   />
           <Route path="/team"      element={<Team />}       />
           <Route path="/activity"  element={<Activity />}   />
         </Route>

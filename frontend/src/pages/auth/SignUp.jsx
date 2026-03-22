@@ -1,11 +1,12 @@
 // Email signup form — creates account via POST /api/auth/signup
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import AuthShell from './AuthShell'
 
 export default function SignUp() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '' })
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
 
@@ -28,6 +29,10 @@ export default function SignUp() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
+    if (!agreedToTerms) {
+      setError('Please agree to the Terms of Service and Privacy Policy to continue.')
+      return
+    }
     if (form.password.length < 8) {
       setError('Password must be at least 8 characters.')
       return
@@ -145,6 +150,20 @@ export default function SignUp() {
             </div>
           )}
         </div>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          <input
+            type="checkbox"
+            checked={agreedToTerms}
+            onChange={e => setAgreedToTerms(e.target.checked)}
+            style={{ marginTop: '2px', accentColor: 'var(--accent)', flexShrink: 0 }}
+          />
+          <span>
+            By creating an account you agree to our{' '}
+            <Link to="/terms" target="_blank" style={{ color: 'var(--accent)' }}>Terms of Service</Link>
+            {' '}and{' '}
+            <Link to="/privacy" target="_blank" style={{ color: 'var(--accent)' }}>Privacy Policy</Link>.
+          </span>
+        </label>
         <button
           type="submit"
           className="btn-primary"

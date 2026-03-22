@@ -10,6 +10,7 @@ const TOOL_LABELS = {
   get_target_accounts:   'Loading target accounts…',
   add_target_account:    'Saving target account…',
   remove_target_account: 'Removing target account…',
+  get_outreach_history:  'Checking outreach history…',
 }
 
 const SUGGESTION_ICONS = {
@@ -161,7 +162,7 @@ export default function Agent() {
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
         if (err.upgrade_required) {
-          setUpgradeRequired(true)
+          setUpgradeRequired(err.error || true)
           setMessages(prev => prev.slice(0, -1))
           setStreaming(false)
           return
@@ -194,6 +195,8 @@ export default function Agent() {
               setActiveTools(prev => [...prev, event.tool])
             } else if (event.type === 'tool_done') {
               setActiveTools(prev => prev.filter(t => t !== event.tool))
+            } else if (event.type === 'suggestions') {
+              setSuggestions(event.items || [])
             } else if (event.type === 'error') {
               assistantText += `\n\n*Error: ${event.message}*`
               setMessages(prev => {
@@ -239,13 +242,19 @@ export default function Agent() {
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '48px', maxWidth: '480px', textAlign: 'center' }}>
           <div style={{ fontSize: '40px', marginBottom: '16px' }}>✦</div>
           <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
-            AI Agent is a Pro feature
+            {typeof upgradeRequired === 'string' && upgradeRequired.includes('Pro AI messages')
+              ? 'Pro monthly limit reached'
+              : typeof upgradeRequired === 'string' && upgradeRequired.includes('free')
+              ? 'Free monthly limit reached'
+              : 'AI Agent requires a paid plan'}
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6, marginBottom: '28px' }}>
-            Upgrade to Pro to unlock your network intelligence assistant — gap analysis, connection recommendations, and AI-drafted intro messages.
+            {typeof upgradeRequired === 'string'
+              ? upgradeRequired
+              : 'Start on Pro for 200 AI messages/month, or Max for unlimited access to your network intelligence assistant.'}
           </p>
           <a href="/pricing" style={{ display: 'inline-block', padding: '12px 28px', background: 'var(--accent)', color: 'white', borderRadius: '8px', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>
-            Upgrade to Pro
+            View plans
           </a>
         </div>
       </div>
@@ -509,6 +518,24 @@ export default function Agent() {
               </div>
             </div>
           ))}
+
+          {/* Inline follow-up suggestion chips — shown after last assistant response */}
+          {!streaming && suggestions.length > 0 && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
+            <div style={{ maxWidth: '720px', margin: '-4px auto 12px', paddingLeft: '38px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(s.prompt)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: '20px', color: 'var(--accent)', fontSize: '12px', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer', transition: 'background 0.15s, color 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = 'white' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
+                >
+                  <span>{SUGGESTION_ICONS[s.icon] || '→'}</span>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Active tool indicators */}
           {activeTools.length > 0 && (

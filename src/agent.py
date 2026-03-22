@@ -21,7 +21,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import and_, func
 
 from .db import db
-from .models import AgentContext, AgentMessage, Edge, Person, TargetAccount, Tenant, User
+from .models import AgentContext, AgentMessage, Edge, Outreach, Person, TargetAccount, Tenant, User
 from .plans import is_pro, upgrade_error
 
 bp = Blueprint("agent", __name__)
@@ -144,6 +144,29 @@ TOOLS = [
             "required": ["company_name"]
         }
     },
+    {
+        "name": "get_outreach_history",
+        "description": (
+            "Get the user's outreach history — messages drafted or sent via warm intro paths. "
+            "Use this before suggesting a path to check if the user has already attempted contact, "
+            "to surface follow-up opportunities, or to understand which bridges have been used. "
+            "Returns status (drafted/sent/replied/no_reply), the via contact, and timing."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company": {
+                    "type": "string",
+                    "description": "Optional: filter to outreach targeting contacts at this company"
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Optional: filter by status — 'drafted', 'sent', 'replied', or 'no_reply'"
+                }
+            },
+            "required": []
+        }
+    },
 ]
 
 
@@ -233,8 +256,35 @@ def tool_find_path(target_name: str, user_id: int, tenant_id: int) -> dict:
                     p.id: p
                     for p in Person.query.filter(Person.id.in_(full_ids)).all()
                 }
+                # Annotate intermediaries with prior outreach context
+                outreach_by_via: dict[str, dict] = {}
+                try:
+                    prior = Outreach.query.filter_by(user_id=user_id).all()
+                    for o in prior:
+                        if o.via_person_name:
+                            outreach_by_via[o.via_person_name.lower()] = {
+                                "status": o.status,
+                                "target": o.target_name,
+                            }
+                except Exception:
+                    pass
+
+                path_nodes = []
+                for pid in full_ids:
+                    if pid not in persons_by_id:
+                        continue
+                    node = _person_dict(persons_by_id[pid])
+                    via_key = node["name"].lower()
+                    if via_key in outreach_by_via:
+                        prior_info = outreach_by_via[via_key]
+                        node["prior_outreach_via"] = (
+                            f"Previously used as bridge for {prior_info['target']} "
+                            f"(status: {prior_info['status']})"
+                        )
+                    path_nodes.append(node)
+
                 return {
-                    "path": [_person_dict(persons_by_id[pid]) for pid in full_ids if pid in persons_by_id],
+                    "path": path_nodes,
                     "degrees": len(full_ids) - 1,
                 }
             if neighbor not in visited:
@@ -390,6 +440,48 @@ def tool_remove_target_account(company_name: str, user_id: int) -> dict:
     return {"success": True, "message": f"Removed {name} from target accounts"}
 
 
+def tool_get_outreach_history(user_id: int, company: str = "", status: str = "") -> dict:
+    from datetime import datetime, timezone
+    q = Outreach.query.filter_by(user_id=user_id)
+    if company:
+        q = q.filter(Outreach.target_company.ilike(f"%{company}%"))
+    if status and status in ("drafted", "sent", "replied", "no_reply"):
+        q = q.filter(Outreach.status == status)
+    records = q.order_by(Outreach.created_at.desc()).limit(25).all()
+
+    now = datetime.now(timezone.utc)
+    result = []
+    for o in records:
+        item = {
+            "target": o.target_name,
+            "company": o.target_company,
+            "via": o.via_person_name,
+            "status": o.status,
+            "days_ago": (now - o.created_at.replace(tzinfo=timezone.utc)).days if o.created_at else None,
+        }
+        if o.follow_up_at:
+            item["follow_up_in_days"] = (o.follow_up_at.replace(tzinfo=timezone.utc) - now).days
+        if o.notes:
+            item["notes"] = o.notes
+        result.append(item)
+
+    overdue = sum(
+        1 for o in records
+        if o.follow_up_at and o.follow_up_at.replace(tzinfo=timezone.utc) <= now and o.status != "replied"
+    )
+    return {
+        "outreach": result,
+        "total": len(result),
+        "summary": {
+            "drafted":         sum(1 for o in records if o.status == "drafted"),
+            "sent":            sum(1 for o in records if o.status == "sent"),
+            "replied":         sum(1 for o in records if o.status == "replied"),
+            "no_reply":        sum(1 for o in records if o.status == "no_reply"),
+            "overdue_follow_ups": overdue,
+        },
+    }
+
+
 def execute_tool(name: str, tool_input: dict, user_id: int, tenant_id: int) -> str:
     try:
         if name == "search_network":
@@ -408,6 +500,12 @@ def execute_tool(name: str, tool_input: dict, user_id: int, tenant_id: int) -> s
             )
         elif name == "remove_target_account":
             result = tool_remove_target_account(tool_input["company_name"], user_id)
+        elif name == "get_outreach_history":
+            result = tool_get_outreach_history(
+                user_id,
+                company=tool_input.get("company", ""),
+                status=tool_input.get("status", ""),
+            )
         else:
             result = {"error": f"Unknown tool: {name}"}
     except Exception as e:
@@ -486,21 +584,97 @@ def _build_system_prompt(user_id: int, tenant_id: int) -> str:
     except Exception:
         pass
 
+    # ── Outreach context ──────────────────────────────────────────────────────
+    try:
+        from datetime import datetime, timezone
+        outreach_records = (
+            Outreach.query.filter_by(user_id=user_id)
+            .order_by(Outreach.created_at.desc())
+            .limit(30)
+            .all()
+        )
+        if outreach_records:
+            now = datetime.now(timezone.utc)
+            drafted      = [o for o in outreach_records if o.status == "drafted"]
+            sent         = [o for o in outreach_records if o.status == "sent"]
+            no_reply     = [o for o in outreach_records if o.status == "no_reply"]
+            replied      = [o for o in outreach_records if o.status == "replied"]
+            overdue      = [
+                o for o in outreach_records
+                if o.follow_up_at and o.follow_up_at.replace(tzinfo=timezone.utc) <= now
+                and o.status != "replied"
+            ]
+
+            def _fmt(records, n=4):
+                return ", ".join(
+                    f"{o.target_name or '?'} @ {o.target_company or '?'}"
+                    for o in records[:n]
+                )
+
+            lines.append("\n## Active Outreach")
+            if drafted:
+                lines.append(f"- {len(drafted)} drafted (not yet sent): {_fmt(drafted)}")
+            if sent:
+                lines.append(f"- {len(sent)} sent, awaiting reply: {_fmt(sent)}")
+            if no_reply:
+                lines.append(f"- {len(no_reply)} marked no reply — consider different bridge or timing: {_fmt(no_reply)}")
+            if replied:
+                lines.append(f"- {len(replied)} replied (active conversations): {_fmt(replied, 3)}")
+            if overdue:
+                overdue_str = ", ".join(
+                    f"{o.target_name or '?'} (via {o.via_person_name or '?'})"
+                    for o in overdue[:3]
+                )
+                lines.append(f"- ⚠️ {len(overdue)} overdue follow-ups: {overdue_str}")
+            if not any([drafted, sent, no_reply, replied]):
+                lines.append("- No outreach started yet — a great first ask after finding a path")
+    except Exception:
+        pass
+
     lines += [
         "\n## Your responsibilities",
         "- Find warm introduction paths to target contacts using the network tools",
         "- Run gap analysis to surface which target accounts lack warm paths and identify bridge contacts",
         "- Recommend who to reach out to based on their business goals and ICP",
         "- Draft compelling, personalized intro messages when asked (reference the connector by name)",
+        "- Check outreach history with get_outreach_history before suggesting a path — flag if already attempted",
         "- Help manage and prioritize their target accounts list",
         "- Identify network gaps and suggest actionable strategies to fill them",
-        "\n## Guidelines",
+        "- Surface overdue follow-ups proactively when relevant",
+
+        "\n## Intro message frames — pick the right one",
+        "**Cold ask** (first contact, no prior relationship with target): Lead with the connector's name in sentence 1. "
+        "State why THIS person specifically, not generic flattery. One tight ask ('15 minutes' not 'coffee sometime'). "
+        "Example opening: 'Hi [target], [connector] suggested I reach out — I'm [role] at [company] and [one-line why].'",
+
+        "**Warm re-connect** (user has met the target before, or target worked at same company): "
+        "Open with the specific shared touchpoint. Bridge to why now. "
+        "Example opening: 'Hi [target], we met at [event/place] back in [year] — I've been following [their work] since.'",
+
+        "**Trigger hook** (target recently changed jobs, raised funding, launched product, published content): "
+        "Open with genuine acknowledgment of the specific event — make it feel timely, not canned. "
+        "Example opening: 'Congratulations on the [Series B / new role at X / launch of Y] — [one genuine observation].'",
+
+        "Always: name the connector explicitly, keep under 150 words, end with exactly one clear ask. "
+        "Label the frame you chose at the top of your response so the user understands the approach.",
+
+        "\n## Gap analysis output format",
+        "When presenting gap analysis results, always structure your response as:",
+        "1. One-line verdict: 'X of your Y targets are completely unreachable — no path at all.'",
+        "2. True gaps first (sorted worst → better): for each, name the best available bridge even if 2nd-degree.",
+        "3. Bridgeable targets: name the specific bridge contact and how many connections they have there.",
+        "4. Already-connected targets: briefly confirm strength.",
+        "5. End with 1-2 opportunity companies worth adding as targets (from network data).",
+        "6. Suggest ONE concrete next action the user should take today.",
+
+        "\n## General guidelines",
         "- Always be specific and actionable — reference real people and paths from tool results",
         "- Use search_network before referencing any specific person",
         "- Use analyze_network_gaps when asked about gaps, blind spots, or where the network is weak",
         "- Use find_path when the user wants to reach someone specific",
+        "- Use get_outreach_history when asked about past attempts, follow-ups, or pipeline status",
+        "- If a path node has a 'prior_outreach_via' field, mention it so the user knows that bridge has been used",
         "- Keep responses concise and focused; lead with the most useful insight",
-        "- When drafting intro messages, make them personal and reference the shared connection",
         "- If the network is small, acknowledge it and suggest strategic ways to grow it",
         "- You already know the network size from the snapshot above — no need to call get_network_overview unless you need more detail",
     ]
@@ -862,6 +1036,76 @@ def get_suggestions():
     return jsonify(suggestions=suggestions[:3])
 
 
+# ── INLINE SUGGESTION BUILDER ─────────────────────────────────────────────────
+
+def _build_inline_suggestions(user_id: int, tenant_id: int, user_msg: str, response_text: str, tools_called: list) -> list:
+    """
+    Generate 2–3 contextual follow-up suggestion chips after an agent turn.
+    Rule-based — no extra LLM call needed.
+    """
+    suggestions = []
+    msg_lower = (user_msg + " " + response_text).lower()
+
+    # If we just found a path → offer to draft the message
+    if "find_path" in tools_called or "path" in msg_lower:
+        suggestions.append({
+            "label": "Draft the intro message",
+            "prompt": "Draft a warm intro message I can send through this path.",
+            "icon": "recommend",
+        })
+
+    # If gap analysis was run → offer per-company drill-down
+    if "analyze_network_gaps" in tools_called:
+        # Try to find a company name from the response to make the prompt specific
+        targets = TargetAccount.query.filter_by(user_id=user_id).all()
+        if targets:
+            suggestions.append({
+                "label": f"Find a path into {targets[0].company_name}",
+                "prompt": f"Find the best path to reach someone at {targets[0].company_name}.",
+                "icon": "gap",
+            })
+
+    # If outreach history was checked → offer follow-up drafting
+    if "get_outreach_history" in tools_called or "no reply" in msg_lower or "follow-up" in msg_lower:
+        suggestions.append({
+            "label": "Draft a follow-up",
+            "prompt": "Help me draft a follow-up message for the outreach that hasn't gotten a reply.",
+            "icon": "recommend",
+        })
+
+    # If a company was mentioned → offer to check who they know there
+    for keyword in ["who at", "people at", "connections at", "network at"]:
+        if keyword in msg_lower:
+            suggestions.append({
+                "label": "Run full gap analysis",
+                "prompt": "Analyze all my target accounts and rank where I should focus next.",
+                "icon": "analysis",
+            })
+            break
+
+    # Always offer something if list is empty
+    if not suggestions:
+        try:
+            total = Person.query.filter_by(tenant_id=tenant_id, is_self=False).count()
+            target_count = TargetAccount.query.filter_by(user_id=user_id).count()
+            if target_count >= 2:
+                suggestions.append({
+                    "label": "Full gap analysis",
+                    "prompt": "Analyze gaps across all my target accounts and tell me where to focus first.",
+                    "icon": "analysis",
+                })
+            if total > 0:
+                suggestions.append({
+                    "label": "Who should I reach out to?",
+                    "prompt": "Based on my targets and ICP, who should I reach out to this week?",
+                    "icon": "recommend",
+                })
+        except Exception:
+            pass
+
+    return suggestions[:3]
+
+
 # ── CHAT ──────────────────────────────────────────────────────────────────────
 
 @bp.post("/api/agent/chat")
@@ -870,10 +1114,19 @@ def agent_chat():
     user_id = int(get_jwt_identity())
     user = db.session.get(User, user_id)
     tenant = db.session.get(Tenant, user.tenant_id) if user else None
-    if not is_pro(tenant):
-        return upgrade_error(
-            "The AI Agent is a Pro feature. Upgrade to access your network intelligence assistant."
-        )
+    from .plans import FREE_AGENT_MSG_LIMIT, PRO_AGENT_MSG_LIMIT, is_max, monthly_agent_messages_used
+    if not is_max(tenant):
+        used = monthly_agent_messages_used(user_id)
+        if not is_pro(tenant) and used >= FREE_AGENT_MSG_LIMIT:
+            return upgrade_error(
+                f"You've used your {FREE_AGENT_MSG_LIMIT} free AI messages this month. "
+                "Upgrade to Pro for 200 messages/month, or Max for unlimited."
+            )
+        if is_pro(tenant) and used >= PRO_AGENT_MSG_LIMIT:
+            return upgrade_error(
+                f"You've used your {PRO_AGENT_MSG_LIMIT} Pro AI messages this month. "
+                "Upgrade to Max for unlimited AI messages."
+            )
 
     try:
         import anthropic
@@ -976,6 +1229,19 @@ def agent_chat():
         # Persist exchange to conversation memory
         try:
             _save_messages(user_id, last_user_msg, full_response_text)
+        except Exception:
+            pass
+
+        # Stream contextual follow-up suggestions based on this turn
+        try:
+            inline_suggestions = _build_inline_suggestions(
+                user_id, user.tenant_id, last_user_msg, full_response_text,
+                tools_called=[b.name for turn_msgs in messages_hist for b in
+                              (turn_msgs.get("content", []) if isinstance(turn_msgs.get("content"), list) else [])
+                              if hasattr(b, "type") and getattr(b, "type", None) == "tool_use"],
+            )
+            if inline_suggestions:
+                yield f"data: {json.dumps({'type': 'suggestions', 'items': inline_suggestions})}\n\n"
         except Exception:
             pass
 

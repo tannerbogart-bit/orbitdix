@@ -3,7 +3,22 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
+startCommand = "./start.sh"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+[[services]]
+internalPort = 8000
+
+[deploy.envs]
+# Required — set these in Railway dashboard or CLI before first deploy
+# DATABASE_URL     = set automatically when you add a PostgreSQL plugin
+# SECRET_KEY       = python -c "import secrets; print(secrets.token_hex(32))"
+# JWT_SECRET_KEY   = python -c "import secrets; print(secrets.token_hex(32))"
+# ANTHROPIC_API_KEY = from console.anthropic.com
+# FRONTEND_URL     = your Railway public URL (e.g. https://orbitsix.up.railway.app)
+# RESEND_API_KEY   = from resend.com (optional — emails log to stdout without it)
+# FROM_EMAIL       = OrbitSix <noreply@yourdomain.com>
+# CRON_SECRET      = any random string to protect /api/admin/digest

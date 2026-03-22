@@ -165,6 +165,31 @@ class TargetAccount(db.Model):
     user = db.relationship("User", backref=db.backref("target_accounts", lazy=True, cascade="all, delete-orphan", passive_deletes=True))
 
 
+class Outreach(db.Model):
+    __tablename__ = "outreach"
+    __table_args__ = (
+        db.Index("ix_outreach_user_id",   "user_id"),
+        db.Index("ix_outreach_tenant_id", "tenant_id"),
+        db.Index("ix_outreach_status",    "status"),
+    )
+
+    id               = db.Column(db.Integer,     primary_key=True)
+    user_id          = db.Column(db.Integer,     db.ForeignKey("users.id",    ondelete="CASCADE"), nullable=False)
+    tenant_id        = db.Column(db.Integer,     db.ForeignKey("tenants.id",  ondelete="CASCADE"), nullable=False)
+    target_name      = db.Column(db.String(255), nullable=True)
+    target_company   = db.Column(db.String(255), nullable=True)
+    via_person_name  = db.Column(db.String(255), nullable=True)
+    path_summary     = db.Column(db.Text,        nullable=True)
+    message          = db.Column(db.Text,        nullable=True)
+    status           = db.Column(db.String(50),  nullable=False, default="drafted")  # drafted | sent | replied | no_reply
+    notes            = db.Column(db.Text,        nullable=True)
+    follow_up_at     = db.Column(db.DateTime,    nullable=True)
+    sent_at          = db.Column(db.DateTime,    nullable=True)
+    created_at       = db.Column(db.DateTime,    default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", backref=db.backref("outreach_records", lazy=True, cascade="all, delete-orphan", passive_deletes=True))
+
+
 class Edge(db.Model):
     __tablename__ = "edges"
     __table_args__ = (

@@ -28,7 +28,14 @@ def create_app():
 
     app = Flask(__name__)
 
-    db_url = os.getenv("DATABASE_URL", "sqlite:///orbitsix.db")
+    db_url = os.getenv("DATABASE_URL", "")
+    # For SQLite with a relative path, resolve to project root / instance so it
+    # works regardless of the working directory of the Flask process.
+    if not db_url or db_url == "sqlite:///orbitsix.db" or db_url == "sqlite:///instance/orbitsix.db":
+        project_root = pathlib.Path(__file__).resolve().parent.parent
+        db_path = project_root / "instance" / "orbitsix.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        db_url = "sqlite:///" + str(db_path).replace("\\", "/")
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
@@ -37,6 +44,7 @@ def create_app():
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-session-secret-change-me")
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_SECURE"]   = not db_url.startswith("sqlite")  # HTTPS only in production
 
     if not db_url.startswith("sqlite"):
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = PROD_POOL_OPTIONS
@@ -68,14 +76,16 @@ def create_app():
         print("[JWT] Token has expired")
         return jsonify(error="Token has expired"), 401
 
-    from .models import Person, Edge, Tenant, User, SavedPath, Activity, AgentContext, TargetAccount  # noqa: F401 — registers models with SQLAlchemy
+    from .models import Person, Edge, Tenant, User, SavedPath, Activity, AgentContext, TargetAccount, Outreach  # noqa: F401 — registers models with SQLAlchemy
 
     from .agent import bp as agent_bp
     from .ai import bp as ai_bp
     from .auth import bp as auth_bp
     from .billing import bp as billing_bp
+    from .digest import bp as digest_bp
     from .intro_path import bp as intro_path_bp
     from .oauth import bp as oauth_bp
+    from .outreach import bp as outreach_bp
     from .people import bp as people_bp
     from .saved_paths import bp as saved_paths_bp
 
@@ -86,14 +96,20 @@ def create_app():
     app.register_blueprint(ai_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(billing_bp)
+    app.register_blueprint(digest_bp)
     app.register_blueprint(intro_path_bp)
     app.register_blueprint(oauth_bp)
+    app.register_blueprint(outreach_bp)
     app.register_blueprint(people_bp)
     app.register_blueprint(saved_paths_bp)
 
     @app.get("/health")
     def health():
-        return jsonify(status="ok")
+        try:
+            db.session.execute(sa.text("SELECT 1"))
+            return jsonify(status="ok", db="ok")
+        except Exception as e:
+            return jsonify(status="error", db=str(e)), 503
 
     # Serve built React frontend in production
     frontend_dist = pathlib.Path(app.root_path).parent / "frontend" / "dist"

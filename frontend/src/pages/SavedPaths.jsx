@@ -40,7 +40,7 @@ function PathCard({ path, onRemove, onDraftMessage }) {
               }}>
                 {initials}
               </div>
-              {i < nodes.length - 1 && <div className="path-edge-line" style={{ minWidth: '24px', top: '-6px' }} />}
+              {i < nodes.length - 1 && <div className="path-edge-line" style={{ minWidth: '24px' }} />}
             </div>
           )
         })}

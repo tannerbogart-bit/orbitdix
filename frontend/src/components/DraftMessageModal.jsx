@@ -48,9 +48,10 @@ function buildMessage(target, path, edges = []) {
   return `Hi ${connector?.first_name},\n\nI hope you're doing well! I'm trying to get an intro to ${target?.first_name} ${target?.last_name}${introducerContext}\n\nWould you be able to make an introduction? I'd love to connect with them about [your reason].\n\nPath: ${via} → ${target?.first_name}\n\nThanks so much!`
 }
 
-export default function DraftMessageModal({ path, target, edges = [], onClose }) {
+export default function DraftMessageModal({ path, target, edges = [], onClose, onSaved }) {
   const [message, setMessage]   = useState(() => buildMessage(target, path, edges))
-  const [sent, setSent]         = useState(false)
+  const [saved, setSaved]       = useState(false)
+  const [saving, setSaving]     = useState(false)
   const [aiLoading, setAiLoading]   = useState(false)
   const [aiError, setAiError]       = useState(null)
   const [upgradeMsg, setUpgradeMsg] = useState(null)
@@ -75,10 +76,36 @@ export default function DraftMessageModal({ path, target, edges = [], onClose })
     }
   }
 
-  function handleSend() {
-    setSent(true)
-    api.recordMessageDrafted().catch(() => {})
-    setTimeout(onClose, 1800)
+  async function handleSaveAndCopy() {
+    setSaving(true)
+    try {
+      // Build path summary string
+      const pathSummary = path && path.length > 1
+        ? path.map(p => `${p.first_name} ${p.last_name || ''}`.trim()).join(' → ')
+        : null
+      const viaName = path && path.length > 2 ? path[1].first_name + ' ' + (path[1].last_name || '') : null
+
+      await api.createOutreach({
+        target_name:     target ? `${target.first_name || ''} ${target.last_name || ''}`.trim() : null,
+        target_company:  target?.company || null,
+        via_person_name: viaName,
+        path_summary:    pathSummary,
+        message,
+        status: 'drafted',
+      })
+      api.recordMessageDrafted().catch(() => {})
+      await navigator.clipboard.writeText(message).catch(() => {})
+      setSaved(true)
+      if (onSaved) onSaved()
+      setTimeout(onClose, 1800)
+    } catch {
+      // Copy even if save fails
+      await navigator.clipboard.writeText(message).catch(() => {})
+      setSaved(true)
+      setTimeout(onClose, 1800)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -222,7 +249,7 @@ export default function DraftMessageModal({ path, target, edges = [], onClose })
           }}
         />
 
-        {sent ? (
+        {saved ? (
           <div
             style={{
               display: 'flex',
@@ -241,16 +268,17 @@ export default function DraftMessageModal({ path, target, edges = [], onClose })
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M3 8.5L6.5 12L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            Message sent!
+            Saved to tracker &amp; copied!
           </div>
         ) : (
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               className="btn-primary"
               style={{ flex: 1, justifyContent: 'center', fontSize: '14px' }}
-              onClick={handleSend}
+              onClick={handleSaveAndCopy}
+              disabled={saving}
             >
-              Send via LinkedIn
+              {saving ? 'Saving…' : 'Save to tracker & copy'}
             </button>
             <button className="btn-ghost" onClick={onClose} style={{ fontSize: '14px' }}>
               Cancel

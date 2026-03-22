@@ -146,6 +146,10 @@ def get_stats():
     tenant = db.session.get(Tenant, user.tenant_id)
     plan   = tenant.plan if tenant else "free"
     pro    = is_pro(tenant)
+    from .plans import FREE_AGENT_MSG_LIMIT, PRO_AGENT_MSG_LIMIT, is_max, monthly_agent_messages_used
+    max_plan      = is_max(tenant)
+    agent_used    = monthly_agent_messages_used(user_id)
+    agent_limit   = None if max_plan else (PRO_AGENT_MSG_LIMIT if pro else FREE_AGENT_MSG_LIMIT)
     last_synced = tenant.last_synced_at.isoformat() if tenant and tenant.last_synced_at else None
     return jsonify(
         connections=total,
@@ -153,9 +157,12 @@ def get_stats():
         messages_drafted=tenant.messages_drafted if tenant else 0,
         plan=plan,
         is_pro=pro,
+        is_max=max_plan,
         paths_this_month=monthly_paths_used(user.tenant_id),
         paths_limit=None if pro else FREE_MONTHLY_PATH_LIMIT,
         contacts_limit=None if pro else FREE_CONTACT_LIMIT,
+        agent_messages_this_month=agent_used,
+        agent_messages_limit=agent_limit,
         last_synced_at=last_synced,
     )
 

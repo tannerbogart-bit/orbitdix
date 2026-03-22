@@ -26,8 +26,8 @@ export default function Shell() {
 
     api.getStats().then(d => {
       const days = daysSince(d.last_synced_at)
-      // Show banner if never synced (and has connections) OR synced > STALE_DAYS ago
-      if (d.connections > 0 && (days === null || days > STALE_DAYS)) {
+      // Only show banner when data is genuinely stale (>30 days since last sync)
+      if (d.connections > 0 && days !== null && days > STALE_DAYS) {
         setStaleDays(days)
       }
     }).catch(() => {})

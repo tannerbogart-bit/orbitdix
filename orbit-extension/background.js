@@ -15,10 +15,15 @@
  *   4. Shows badge feedback when done
  */
 
-const API_BASE             = 'http://localhost:5000';
+const DEFAULT_API_BASE     = 'https://orbitsix.com';
 const CONNECTIONS_URL      = 'https://www.linkedin.com/mynetwork/invite-connect/connections/';
 const BATCH_SIZE           = 20;
 const AUTO_SYNC_COOLDOWN_MS = 24 * 60 * 60 * 1000;   // 24 hours
+
+async function getApiBase() {
+  const { orbitApiBase } = await chrome.storage.sync.get('orbitApiBase');
+  return (orbitApiBase || DEFAULT_API_BASE).replace(/\/$/, '');
+}
 
 // Track open popup ports so we can push messages
 let popupPort  = null;
@@ -82,6 +87,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 // ── Core scrape + upload (shared by manual and silent flows) ──────────────────
 async function _scrapeAndUpload(tabId, token, onProgress) {
+  const apiBase = await getApiBase();
+
   // Wait for LinkedIn SPA to settle after page load
   await new Promise(r => setTimeout(r, 2000));
 
@@ -109,7 +116,7 @@ async function _scrapeAndUpload(tabId, token, onProgress) {
     });
 
     try {
-      const res = await fetch(`${API_BASE}/api/people/bulk`, {
+      const res = await fetch(`${apiBase}/api/people/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ people: batches[i] }),

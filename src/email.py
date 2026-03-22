@@ -92,6 +92,39 @@ def send_verification_email(to_email: str, verify_link: str) -> bool:
         return False
 
 
+def send_digest_email(to_email: str, first_name: str, highlights: dict) -> bool:
+    """
+    Send a weekly re-engagement digest.
+    highlights = {
+        top_target: str,          # company name with most bridges
+        bridge_count: int,        # number of bridge contacts into top_target
+        new_contacts: int,        # contacts added in last 7 days
+        total_contacts: int,
+    }
+    """
+    api_key = os.getenv("RESEND_API_KEY", "")
+    if not api_key:
+        return False
+
+    try:
+        import resend
+        resend.api_key = api_key
+
+        from_email = os.getenv("FROM_EMAIL", "OrbitSix <noreply@orbitsix.com>")
+        app_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+        resend.Emails.send({
+            "from": from_email,
+            "to": [to_email],
+            "subject": f"Your network update — {highlights.get('new_contacts', 0)} new connections this week",
+            "html": _digest_email_html(first_name, highlights, app_url),
+        })
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send digest email: {e}", flush=True)
+        return False
+
+
 def _welcome_email_html(first_name: str, app_url: str) -> str:
     name = first_name or "there"
     return f"""<!DOCTYPE html>
@@ -253,6 +286,83 @@ def _reset_email_html(reset_link: str, app_url: str) -> str:
           <p style="font-size:12px;color:#55556a;margin:0;line-height:1.6;">
             If you didn&apos;t request this, you can safely ignore this email.
             Your password won&apos;t change until you click the link above.<br><br>
+            <a href="{app_url}" style="color:#55556a;">orbitsix.com</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+def _digest_email_html(first_name: str, highlights: dict, app_url: str) -> str:
+    name         = first_name or "there"
+    top_target   = highlights.get("top_target", "")
+    bridge_count = highlights.get("bridge_count", 0)
+    new_contacts = highlights.get("new_contacts", 0)
+    total        = highlights.get("total_contacts", 0)
+
+    new_contacts_row = (
+        f'<tr><td style="padding:10px 0;border-bottom:1px solid #2a2a3e;">'
+        f'<span style="color:#7c6ee0;font-weight:700;">+{new_contacts:,}</span>'
+        f'<span style="color:#e2e2e8;margin-left:8px;">new connections added this week</span>'
+        f'</td></tr>'
+    ) if new_contacts > 0 else ""
+
+    bridge_row = (
+        f'<tr><td style="padding:10px 0;border-bottom:1px solid #2a2a3e;">'
+        f'<span style="color:#7c6ee0;font-weight:700;">{bridge_count}</span>'
+        f'<span style="color:#e2e2e8;margin-left:8px;">warm path{"s" if bridge_count != 1 else ""} into <strong>{top_target}</strong></span>'
+        f'<span style="color:#8888a8;font-size:13px;margin-left:6px;">— connections who can intro you</span>'
+        f'</td></tr>'
+    ) if top_target and bridge_count > 0 else ""
+
+    cta_text = f"Find my path into {top_target} \u2192" if top_target else "Open my agent \u2192"
+    preview = (
+        f"You have {bridge_count} warm path{'s' if bridge_count != 1 else ''} into {top_target}."
+        if top_target and bridge_count > 0
+        else f"Your network now has {total:,} connections."
+    )
+
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f14;font-family:'DM Sans',Arial,sans-serif;color:#e2e2e8;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f14;padding:40px 0;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#1a1a2e;border:1px solid #2a2a3e;border-radius:16px;padding:40px 36px;">
+        <tr><td>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+            <tr>
+              <td style="background:#7c6ee0;width:36px;height:36px;border-radius:9px;text-align:center;vertical-align:middle;">
+                <span style="color:#fff;font-size:18px;font-weight:bold;">\u2b21</span>
+              </td>
+              <td style="padding-left:10px;font-size:18px;font-weight:700;color:#e2e2e8;vertical-align:middle;">OrbitSix</td>
+            </tr>
+          </table>
+          <h1 style="font-size:22px;font-weight:700;color:#e2e2e8;margin:0 0 8px;">Hey {name}, your network update</h1>
+          <p style="font-size:14px;color:#8888a8;line-height:1.6;margin:0 0 28px;">{preview}</p>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;width:100%;">
+            {new_contacts_row}
+            {bridge_row}
+            <tr><td style="padding:10px 0;">
+              <span style="color:#7c6ee0;font-weight:700;">{total:,}</span>
+              <span style="color:#e2e2e8;margin-left:8px;">total connections in your network</span>
+            </td></tr>
+          </table>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+            <tr>
+              <td style="background:#7c6ee0;border-radius:8px;">
+                <a href="{app_url}/agent" style="display:inline-block;padding:14px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">
+                  {cta_text}
+                </a>
+              </td>
+            </tr>
+          </table>
+          <hr style="border:none;border-top:1px solid #2a2a3e;margin:0 0 24px;">
+          <p style="font-size:12px;color:#55556a;margin:0;line-height:1.6;">
+            You're receiving this because you have an OrbitSix account.<br>
             <a href="{app_url}" style="color:#55556a;">orbitsix.com</a>
           </p>
         </td></tr>

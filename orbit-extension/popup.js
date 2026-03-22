@@ -1,8 +1,10 @@
-const API_BASE = 'http://localhost:5000';
+const DEFAULT_API_BASE = 'https://orbitsix.com';
+let API_BASE = DEFAULT_API_BASE;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const viewLogin  = document.getElementById('view-login');
 const viewImport = document.getElementById('view-import');
+const apiUrlInput = document.getElementById('api-url');
 
 const emailInput    = document.getElementById('email');
 const passwordInput = document.getElementById('password');
@@ -61,15 +63,47 @@ function updateSyncStatus(ts) {
 }
 
 async function init() {
+  // Load API base URL from storage
+  const { orbitApiBase } = await chrome.storage.sync.get('orbitApiBase');
+  API_BASE = (orbitApiBase || DEFAULT_API_BASE).replace(/\/$/, '');
+  if (apiUrlInput) apiUrlInput.value = API_BASE;
+
   const { orbitToken, orbitEmail, lastSyncedAt } = await chrome.storage.local.get(['orbitToken', 'orbitEmail', 'lastSyncedAt']);
 
   if (orbitToken) {
+    // Verify token is still valid with a lightweight probe
+    try {
+      const probe = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: { 'Authorization': `Bearer ${orbitToken}` },
+      });
+      if (probe.status === 401 || probe.status === 422) {
+        // Token expired or invalid — clear and show login
+        await chrome.storage.local.remove(['orbitToken', 'orbitEmail']);
+        viewLogin.style.display = 'block';
+        viewImport.style.display = 'none';
+        showError(loginError, 'Your session expired. Please sign in again.');
+        return;
+      }
+    } catch (_) {
+      // Network offline — still show import view optimistically
+    }
     showImportView(orbitEmail);
     updateSyncStatus(lastSyncedAt || null);
   } else {
     viewLogin.style.display = 'block';
     viewImport.style.display = 'none';
   }
+}
+
+// Save API URL when changed
+if (apiUrlInput) {
+  apiUrlInput.addEventListener('change', async () => {
+    const val = apiUrlInput.value.trim().replace(/\/$/, '');
+    if (val) {
+      API_BASE = val;
+      await chrome.storage.sync.set({ orbitApiBase: val });
+    }
+  });
 }
 
 function showImportView(email) {

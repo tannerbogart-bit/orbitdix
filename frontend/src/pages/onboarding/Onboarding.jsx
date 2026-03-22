@@ -74,7 +74,7 @@ const ghostBtn = (extra = {}) => ({
 })
 
 // ── Step 1: Import network ────────────────────────────────────────────────
-function StepImport({ onDone, onSkip }) {
+function StepImport({ onDone, onSkip }) {  // onDone(count), onSkip()
   const fileRef = useRef(null)
   const [dragging, setDragging]   = useState(false)
   const [importing, setImporting] = useState(false)
@@ -103,6 +103,7 @@ function StepImport({ onDone, onSkip }) {
         total += res.imported ?? 0
       }
       setImported(total)
+      // auto-advance after a short moment so user sees the success state
     } catch {
       setError('Import failed. Please try again.')
     } finally {
@@ -120,14 +121,18 @@ function StepImport({ onDone, onSkip }) {
   if (imported !== null) {
     return (
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>✓</div>
+        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(52,211,153,0.1)', border: '2px solid var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12l5 5L19 7" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
         <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '22px', fontWeight: 700, margin: '0 0 8px' }}>
           {imported.toLocaleString()} connections imported
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 28px' }}>
-          Your network is ready. Next, tell the agent who you want to reach.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 28px', lineHeight: 1.5 }}>
+          OrbitSix can now map warm paths through your entire network. Next, tell the agent who you want to reach.
         </p>
-        <button className="btn-primary" style={primaryBtn()} onClick={onDone}>
+        <button className="btn-primary" style={primaryBtn()} onClick={() => onDone(imported)}>
           Continue → Set your targets
         </button>
       </div>
@@ -235,7 +240,7 @@ function StepTargets({ onDone }) {
       const companies = targets.map(t => t.trim()).filter(Boolean)
       await Promise.all(companies.map(name => api.addTargetAccount({ company_name: name })))
 
-      onDone(companies.length)
+      onDone(companies.length, targets)
     } catch {
       setError('Something went wrong. Please try again.')
       setSaving(false)
@@ -303,12 +308,24 @@ function StepTargets({ onDone }) {
       <button type="submit" className="btn-primary" style={primaryBtn()} disabled={saving}>
         {saving ? 'Saving…' : 'Set up my agent →'}
       </button>
+      <button
+        type="button"
+        className="btn-ghost"
+        style={ghostBtn({ marginTop: '8px' })}
+        onClick={() => onDone(0, [])}
+        disabled={saving}
+      >
+        Skip — I'll fill this in later
+      </button>
     </form>
   )
 }
 
 // ── Step 3: Done ──────────────────────────────────────────────────────────
-function StepReady({ targetCount, onGo }) {
+function StepReady({ targetCount, imported, targets, onGo, onImport }) {
+  const hasNetwork = imported > 0
+  const firstTarget = targets.find(t => t.trim())
+
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 0 32px var(--accent-glow)' }}>
@@ -323,20 +340,53 @@ function StepReady({ targetCount, onGo }) {
       </div>
 
       <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '24px', fontWeight: 700, margin: '0 0 10px' }}>
-        Your agent is ready
+        {hasNetwork ? 'Your agent is ready' : 'Almost there'}
       </h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 8px', lineHeight: 1.6 }}>
-        {targetCount > 0
-          ? `Your agent knows your ${targetCount} target ${targetCount === 1 ? 'company' : 'companies'} and is ready to find the fastest paths in.`
-          : 'Your agent is set up and ready to help you navigate your network.'}
-      </p>
-      <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '0 0 28px' }}>
-        Ask it anything — "Who at Salesforce am I closest to?" or "Who should I reach out to first?"
-      </p>
 
-      <button className="btn-primary" style={primaryBtn()} onClick={onGo}>
-        Open my agent →
-      </button>
+      {hasNetwork ? (
+        <>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 8px', lineHeight: 1.6 }}>
+            {targetCount > 0
+              ? `Mapped ${imported.toLocaleString()} connections across your network. Your agent is ready to find the fastest paths into ${targetCount === 1 ? firstTarget || 'your target' : `your ${targetCount} target companies`}.`
+              : 'Your network is loaded and your agent is set up.'}
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '0 0 28px' }}>
+            {firstTarget
+              ? `Try: "Who's my warmest contact at ${firstTarget}?"`
+              : 'Try: "Who should I reach out to first?" or "Who am I closest to at [company]?"'}
+          </p>
+          <button className="btn-primary" style={primaryBtn()} onClick={onGo}>
+            Ask my agent →
+          </button>
+        </>
+      ) : (
+        <>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 20px', lineHeight: 1.6 }}>
+            Your agent is configured — but without your LinkedIn network, it can't map paths yet.
+            Import your connections to unlock warm introductions.
+          </p>
+          <div style={{
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            padding: '14px 16px',
+            marginBottom: '20px',
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.6,
+            textAlign: 'left',
+          }}>
+            <strong style={{ color: 'var(--text-primary)' }}>LinkedIn → Settings &amp; Privacy → Data Privacy</strong>
+            <br />Get a copy of your data → Connections → Request archive
+          </div>
+          <button className="btn-primary" style={primaryBtn()} onClick={onImport}>
+            Import my network now
+          </button>
+          <button className="btn-ghost" style={ghostBtn({ marginTop: '8px' })} onClick={onGo}>
+            Skip — explore without my network
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -344,31 +394,39 @@ function StepReady({ targetCount, onGo }) {
 // ── Main wizard ───────────────────────────────────────────────────────────
 export default function Onboarding() {
   const navigate = useNavigate()
-  const [step, setStep] = useState(1)
+  const [step, setStep]             = useState(1)
+  const [imported, setImported]     = useState(0)
   const [targetCount, setTargetCount] = useState(0)
+  const [savedTargets, setSavedTargets] = useState([])
 
-  function completeOnboarding() {
+  function completeOnboarding(firstTarget) {
     localStorage.setItem('onboarding_complete', '1')
-    navigate('/agent', { replace: true })
+    const prompt = firstTarget
+      ? `Who are my warmest connections at ${firstTarget}? Give me the best path and a draft intro message.`
+      : null
+    navigate('/agent', { replace: true, state: prompt ? { prompt } : undefined })
   }
 
   return (
     <AuthShell step={step} totalSteps={3}>
       {step === 1 && (
         <StepImport
-          onDone={() => setStep(2)}
+          onDone={(count) => { setImported(count); setStep(2) }}
           onSkip={() => setStep(2)}
         />
       )}
       {step === 2 && (
         <StepTargets
-          onDone={(count) => { setTargetCount(count); setStep(3) }}
+          onDone={(count, targets) => { setTargetCount(count); setSavedTargets(targets); setStep(3) }}
         />
       )}
       {step === 3 && (
         <StepReady
           targetCount={targetCount}
-          onGo={completeOnboarding}
+          imported={imported}
+          targets={savedTargets}
+          onGo={() => completeOnboarding(savedTargets.find(t => t.trim()))}
+          onImport={() => setStep(1)}
         />
       )}
     </AuthShell>

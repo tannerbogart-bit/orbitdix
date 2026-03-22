@@ -21,7 +21,8 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
 
 PLAN_PRICES = {
     "pro":  os.getenv("STRIPE_PRO_PRICE_ID",  ""),
-    "team": os.getenv("STRIPE_TEAM_PRICE_ID", ""),
+    "max":  os.getenv("STRIPE_MAX_PRICE_ID",  ""),
+    "team": os.getenv("STRIPE_TEAM_PRICE_ID", ""),  # legacy alias
 }
 
 
@@ -39,11 +40,11 @@ def create_checkout():
     cancel_url  = data.get("cancel_url",  "http://localhost:5174/pricing")
 
     if plan not in PLAN_PRICES:
-        return jsonify(error="Invalid plan. Choose 'pro' or 'team'"), 400
+        return jsonify(error="Invalid plan. Choose 'pro' or 'max'"), 400
 
     price_id = PLAN_PRICES[plan]
     if not price_id or price_id == "price_REPLACE_ME":
-        return jsonify(error="Stripe price ID not configured. Add STRIPE_PRO_PRICE_ID / STRIPE_TEAM_PRICE_ID to .env"), 500
+        return jsonify(error="Stripe price ID not configured. Add STRIPE_PRO_PRICE_ID / STRIPE_MAX_PRICE_ID to .env"), 500
 
     if not stripe.api_key or stripe.api_key == "sk_test_REPLACE_ME":
         return jsonify(error="Stripe secret key not configured. Add STRIPE_SECRET_KEY to .env"), 500

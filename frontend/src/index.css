@@ -200,6 +200,28 @@ h1, h2, h3, h4, h5, h6, .font-display {
   top: -10px;
 }
 
+/* ── ReactFlow dark theme overrides ────────────────────────────────────── */
+.react-flow__controls-button {
+  background: var(--bg-input) !important;
+  border-color: var(--border) !important;
+  fill: var(--text-secondary) !important;
+}
+.react-flow__controls-button:hover {
+  background: var(--bg-card-hover) !important;
+  fill: var(--text-primary) !important;
+}
+.react-flow__controls-button svg,
+.react-flow__controls-button svg path {
+  fill: var(--text-secondary) !important;
+}
+.react-flow__controls-button:hover svg,
+.react-flow__controls-button:hover svg path {
+  fill: var(--text-primary) !important;
+}
+.react-flow__minimap {
+  background: var(--bg-input) !important;
+}
+
 /* ── Responsive layout helpers ─────────────────────────────────────────── */
 .stats-grid-3 {
   display: grid;

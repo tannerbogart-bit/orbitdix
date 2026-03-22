@@ -36,8 +36,15 @@ function StatusBanner({ error, success }) {
   return null
 }
 
+const PLAN_LABELS = { free: 'Free', pro: 'Pro', max: 'Max', team: 'Max' }
+const PLAN_COLORS = { free: 'var(--text-muted)', pro: 'var(--accent)', max: '#60a5fa', team: '#60a5fa' }
+
 export default function Settings() {
   const navigate = useNavigate()
+
+  // Billing / plan
+  const [stats, setStats]           = useState(null)
+  const [billingLoading, setBillingLoading] = useState(false)
 
   // Profile
   const [profile, setProfile] = useState({
@@ -62,6 +69,7 @@ export default function Settings() {
   const [pwSuccess, setPwSuccess] = useState(false)
 
   useEffect(() => {
+    api.getStats().then(setStats).catch(() => {})
     api.me().then(d => {
       const firstName  = d.first_name  || localStorage.getItem('user_first_name') || ''
       const lastName   = d.last_name   || localStorage.getItem('user_last_name')  || ''
@@ -83,6 +91,18 @@ export default function Settings() {
       })
     }).catch(() => {})
   }, [])
+
+  async function handleManageBilling() {
+    setBillingLoading(true)
+    try {
+      const data = await api.manageBilling()
+      window.location.href = data.url
+    } catch {
+      navigate('/pricing')
+    } finally {
+      setBillingLoading(false)
+    }
+  }
 
   async function handleSaveProfile(e) {
     e.preventDefault()
@@ -158,6 +178,94 @@ export default function Settings() {
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 36px' }}>
         Your profile, business context, and account.
       </p>
+
+      {/* ── Plan & Billing ───────────────────────────────────────────────── */}
+      {stats && (
+        <section style={{ marginBottom: '32px' }}>
+          <h2 style={sectionLabel}>Plan &amp; billing</h2>
+          <div className="card" style={{ padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: stats.plan === 'free' ? '18px' : '0', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '18px', color: PLAN_COLORS[stats.plan] || 'var(--text-primary)' }}>
+                    {PLAN_LABELS[stats.plan] || stats.plan} plan
+                  </span>
+                  {stats.plan === 'free' && (
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', background: 'var(--bg-input)', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      Free forever
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                  {stats.plan === 'free' && 'Upgrade to unlock unlimited contacts, paths, and AI messages.'}
+                  {stats.plan === 'pro'  && 'Pro · $19/month · 200 AI messages/month'}
+                  {(stats.plan === 'max' || stats.plan === 'team') && 'Max · $49/month · Unlimited AI messages'}
+                </div>
+              </div>
+              {stats.plan === 'free' ? (
+                <button className="btn-primary" style={{ fontSize: '13px' }} onClick={() => navigate('/pricing')}>
+                  Upgrade →
+                </button>
+              ) : (
+                <button className="btn-ghost" style={{ fontSize: '13px' }} disabled={billingLoading} onClick={handleManageBilling}>
+                  {billingLoading ? 'Loading…' : 'Manage billing →'}
+                </button>
+              )}
+            </div>
+
+            {/* Usage meters — only for capped plans */}
+            {stats.plan === 'free' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[
+                  { label: 'Contacts', used: stats.connections, limit: stats.contacts_limit },
+                  { label: 'Path searches this month', used: stats.paths_this_month, limit: stats.paths_limit },
+                  { label: 'AI messages this month', used: stats.agent_messages_this_month, limit: stats.agent_messages_limit },
+                ].map(({ label, used, limit }) => limit != null && (
+                  <div key={label}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                      <span>{label}</span>
+                      <span style={{ color: (used ?? 0) >= limit ? 'var(--danger)' : 'var(--text-muted)' }}>
+                        {used ?? 0} / {limit}
+                      </span>
+                    </div>
+                    <div style={{ height: '5px', background: 'var(--bg-input)', borderRadius: '99px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min(100, ((used ?? 0) / limit) * 100)}%`,
+                        background: (used ?? 0) >= limit ? 'var(--danger)' : 'var(--accent)',
+                        borderRadius: '99px', transition: 'width 0.3s',
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {stats.plan === 'pro' && (
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  <span>AI messages this month</span>
+                  <span style={{ color: (stats.agent_messages_this_month ?? 0) >= (stats.agent_messages_limit ?? 200) ? 'var(--danger)' : 'var(--text-muted)' }}>
+                    {stats.agent_messages_this_month ?? 0} / {stats.agent_messages_limit ?? 200}
+                  </span>
+                </div>
+                <div style={{ height: '5px', background: 'var(--bg-input)', borderRadius: '99px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.min(100, ((stats.agent_messages_this_month ?? 0) / (stats.agent_messages_limit ?? 200)) * 100)}%`,
+                    background: (stats.agent_messages_this_month ?? 0) >= (stats.agent_messages_limit ?? 200) ? 'var(--danger)' : 'var(--accent)',
+                    borderRadius: '99px', transition: 'width 0.3s',
+                  }} />
+                </div>
+                {(stats.agent_messages_this_month ?? 0) >= (stats.agent_messages_limit ?? 200) * 0.8 && (
+                  <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '6px' }}>
+                    Approaching limit — upgrade to Max for unlimited AI messages.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── Profile ──────────────────────────────────────────────────────── */}
       <section style={{ marginBottom: '32px' }}>

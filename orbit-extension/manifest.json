@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Orbit Six — LinkedIn Importer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Import your LinkedIn connections into Orbit Six",
 
   "permissions": ["activeTab", "storage", "scripting", "tabs"],
   "host_permissions": [
     "https://www.linkedin.com/*",
+    "https://orbitsix.com/*",
+    "https://*.orbitsix.com/*",
+    "https://*.up.railway.app/*",
     "http://localhost:5000/*"
   ],
 

@@ -80,6 +80,12 @@ export const api = {
   clearAgentHistory:     ()       => req('DELETE', '/agent/history'),
   getAgentSuggestions:   ()       => req('GET',    '/agent/suggestions'),
 
+  // Outreach tracker
+  listOutreach:   (status) => req('GET',    '/outreach' + (status ? `?status=${status}` : '')),
+  createOutreach: (data)   => req('POST',   '/outreach', data),
+  updateOutreach: (id, d)  => req('PATCH',  `/outreach/${id}`, d),
+  deleteOutreach: (id)     => req('DELETE', `/outreach/${id}`),
+
   // Billing
   getBillingPlan:  ()     => req('GET',  '/billing/plan'),
   createCheckout:  (plan) => req('POST', '/checkout', {

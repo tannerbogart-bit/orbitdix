@@ -83,6 +83,16 @@ const NAV = [
     ),
   },
   {
+    to: '/outreach',
+    label: 'Outreach',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M2 4h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        <path d="M1 5l8 6 8-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
     to: '/team',
     label: 'Team',
     icon: (
@@ -233,6 +243,18 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Feedback link */}
+      <div style={{ padding: '6px 14px 2px', textAlign: 'center' }}>
+        <a
+          href="mailto:hello@orbitsix.com?subject=OrbitSix Feedback"
+          style={{ fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'none' }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+        >
+          Send feedback
+        </a>
+      </div>
 
       {/* User → Settings */}
       <div

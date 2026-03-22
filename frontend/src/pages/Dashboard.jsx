@@ -262,36 +262,33 @@ export default function Dashboard() {
         )
       })()}
 
-      {/* Free plan usage meter */}
-      {stats.paths_limit && (
-        <div
-          className="card"
-          style={{ padding: '16px 20px', marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '16px' }}
-        >
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>Path searches this month</span>
-              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                {stats.paths_this_month ?? 0} / {stats.paths_limit}
-              </span>
-            </div>
-            <div style={{ height: '6px', background: 'var(--bg-input)', borderRadius: '99px', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%',
-                width: `${Math.min(100, ((stats.paths_this_month ?? 0) / stats.paths_limit) * 100)}%`,
-                background: (stats.paths_this_month ?? 0) >= stats.paths_limit ? 'var(--danger)' : 'var(--accent)',
-                borderRadius: '99px',
-                transition: 'width 0.3s',
-              }} />
-            </div>
+      {/* Free / Pro plan usage meters */}
+      {(stats.paths_limit || stats.agent_messages_limit) && (
+        <div className="card" style={{ padding: '16px 20px', marginBottom: '28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Syne, sans-serif' }}>
+              Monthly usage
+            </span>
+            <button className="btn-primary" style={{ fontSize: '12px', padding: '5px 12px' }} onClick={() => setShowUpgrade(true)}>
+              Upgrade →
+            </button>
           </div>
-          <button
-            className="btn-primary"
-            style={{ fontSize: '12px', padding: '7px 14px', whiteSpace: 'nowrap', flexShrink: 0 }}
-            onClick={() => setShowUpgrade(true)}
-          >
-            Upgrade →
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {[
+              stats.paths_limit    && { label: 'Path searches',  used: stats.paths_this_month ?? 0,            limit: stats.paths_limit },
+              stats.agent_messages_limit && { label: 'AI messages',   used: stats.agent_messages_this_month ?? 0,   limit: stats.agent_messages_limit },
+            ].filter(Boolean).map(({ label, used, limit }) => (
+              <div key={label}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  <span>{label}</span>
+                  <span style={{ color: used >= limit ? 'var(--danger)' : 'var(--text-muted)' }}>{used} / {limit}</span>
+                </div>
+                <div style={{ height: '5px', background: 'var(--bg-input)', borderRadius: '99px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, (used / limit) * 100)}%`, background: used >= limit ? 'var(--danger)' : 'var(--accent)', borderRadius: '99px', transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
