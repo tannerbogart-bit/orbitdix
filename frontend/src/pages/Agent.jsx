@@ -40,6 +40,7 @@ export default function Agent() {
   const [contextOpen, setContextOpen] = useState(true)
   const [clearing, setClearing]       = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [quota, setQuota]             = useState(null)  // { used, limit } or null if unlimited
 
   const messagesEndRef = useRef(null)
   const abortRef       = useRef(null)
@@ -66,6 +67,12 @@ export default function Agent() {
     loadTargets()
     loadHistory()
     loadSuggestions()
+
+    api.getStats().then(d => {
+      if (d.agent_messages_limit !== null && d.agent_messages_limit !== undefined) {
+        setQuota({ used: d.agent_messages_this_month || 0, limit: d.agent_messages_limit })
+      }
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -220,6 +227,7 @@ export default function Agent() {
 
     setStreaming(false)
     setActiveTools([])
+    setQuota(q => q ? { ...q, used: q.used + 1 } : q)
   }
 
   function handleKeyDown(e) {
@@ -276,9 +284,26 @@ export default function Agent() {
 
       {/* ── Left panel ─────────────────────────────────────────────────────── */}
       <div className={`agent-sidebar${sidebarOpen ? ' open' : ''}`}>
-        <div style={{ padding: '20px 18px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{ padding: '20px 18px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>AI Agent</div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Network intelligence assistant</div>
+          {quota && (
+            <div style={{ marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', fontFamily: 'DM Sans, sans-serif' }}>
+                <span>{Math.max(0, quota.limit - quota.used)} messages remaining</span>
+                <span style={{ color: quota.used >= quota.limit ? 'var(--danger)' : 'var(--text-muted)' }}>{quota.used}/{quota.limit}</span>
+              </div>
+              <div style={{ height: '3px', background: 'var(--bg-input)', borderRadius: '99px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${Math.min(100, (quota.used / quota.limit) * 100)}%`,
+                  background: quota.used / quota.limit > 0.85 ? 'var(--danger)' : quota.used / quota.limit > 0.6 ? 'var(--warning)' : 'var(--accent)',
+                  borderRadius: '99px',
+                  transition: 'width 0.3s',
+                }} />
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>

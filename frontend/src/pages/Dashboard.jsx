@@ -74,6 +74,9 @@ export default function Dashboard() {
 
   const onboardingDone = localStorage.getItem('onboarding_complete') === '1'
   const showSetupNudge = !onboardingDone && stats.connections !== '…' && (stats.connections ?? 0) === 0
+  // Hide extension banner once user has connections (they've already synced)
+  const hasConnections = stats.connections !== '…' && (stats.connections ?? 0) > 0
+  const showExtBanner  = !bannerDismissed && !hasConnections
 
   return (
     <div className="page-pad" style={{ maxWidth: '900px' }}>
@@ -128,7 +131,7 @@ export default function Dashboard() {
       </div>
 
       {/* Chrome extension sync banner */}
-      {!bannerDismissed && (
+      {showExtBanner && (
         <div
           style={{
             background: 'linear-gradient(135deg, rgba(124,110,224,0.15) 0%, rgba(96,165,250,0.08) 100%)',

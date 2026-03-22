@@ -18,6 +18,29 @@ function timeAgo(isoString) {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+function dateGroup(isoString) {
+  const now  = new Date()
+  const date = new Date(isoString)
+  const todayStart     = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterdayStart = new Date(todayStart - 86400000)
+  const weekStart      = new Date(todayStart - 6 * 86400000)
+  if (date >= todayStart)     return 'Today'
+  if (date >= yesterdayStart) return 'Yesterday'
+  if (date >= weekStart)      return 'This week'
+  return 'Earlier'
+}
+
+function groupActivities(items) {
+  const ORDER = ['Today', 'Yesterday', 'This week', 'Earlier']
+  const groups = {}
+  for (const item of items) {
+    const g = dateGroup(item.created_at)
+    if (!groups[g]) groups[g] = []
+    groups[g].push(item)
+  }
+  return ORDER.filter(g => groups[g]).map(g => ({ label: g, items: groups[g] }))
+}
+
 export default function Activity() {
   const [activities, setActivities] = useState([])
   const [loading, setLoading]       = useState(true)
@@ -34,6 +57,8 @@ export default function Activity() {
     if (filter === 'All') return activities
     return activities.filter(a => TYPE_META[a.type]?.filter === filter)
   }, [activities, filter])
+
+  const grouped = useMemo(() => groupActivities(filtered), [filtered])
 
   if (loading) {
     return (
@@ -86,43 +111,52 @@ export default function Activity() {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {grouped.length === 0 ? (
         <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
           No {filter.toLowerCase()} activity yet.
         </div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
-          {filtered.map((item, i) => {
-            const meta = TYPE_META[item.type] || TYPE_META.path_found
-            return (
-              <div
-                key={item.id}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '14px',
-                  padding: '16px 20px',
-                  borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <div style={{
-                  width: '36px', height: '36px', borderRadius: '10px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '16px', flexShrink: 0, background: meta.bg,
-                }}>
-                  {meta.emoji}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginBottom: '2px' }}>{item.text}</div>
-                  <span style={{ fontSize: '12px', color: meta.color }}>{meta.label}</span>
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  {timeAgo(item.created_at)}
-                </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {grouped.map(({ label, items }) => (
+            <div key={label}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                {label}
               </div>
-            )
-          })}
+              <div className="card" style={{ overflow: 'hidden' }}>
+                {items.map((item, i) => {
+                  const meta = TYPE_META[item.type] || TYPE_META.path_found
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '14px',
+                        padding: '16px 20px',
+                        borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{
+                        width: '36px', height: '36px', borderRadius: '10px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '16px', flexShrink: 0, background: meta.bg,
+                      }}>
+                        {meta.emoji}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginBottom: '2px' }}>{item.text}</div>
+                        <span style={{ fontSize: '12px', color: meta.color }}>{meta.label}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        {timeAgo(item.created_at)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

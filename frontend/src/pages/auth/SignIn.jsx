@@ -32,6 +32,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
+  const [showPw,   setShowPw]   = useState(false)
 
   // Full-page redirect — the backend handles the OAuth flow and eventually
   // redirects the browser to /auth/oauth-callback#token=...
@@ -153,18 +154,28 @@ export default function SignIn() {
           required
           autoComplete="email"
         />
-        <input
-          className="input"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            className="input"
+            type={showPw ? 'text' : 'password'}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            style={{ paddingRight: '42px' }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw(v => !v)}
+            style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', lineHeight: 1 }}
+          >
+            {showPw ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+        </div>
         <button
           type="submit"
-          className="btn-ghost"
+          className="btn-primary"
           style={{ width: '100%', justifyContent: 'center' }}
           disabled={loading}
         >
@@ -202,6 +213,23 @@ export default function SignIn() {
 }
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
+
+function EyeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4"/>
+    </svg>
+  )
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M2 2l12 12M6.5 6.6A2 2 0 0 0 9.4 9.5M4.2 4.3C2.5 5.3 1 8 1 8s2.5 5 7 5a7.2 7.2 0 0 0 3.8-1.1M7 3.1A6.8 6.8 0 0 1 8 3c4.5 0 7 5 7 5s-.9 1.7-2.3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
 
 function LinkedInIcon() {
   return (

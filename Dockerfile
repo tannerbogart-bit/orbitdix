@@ -6,7 +6,7 @@ COPY frontend/package*.json ./
 RUN npm ci --prefer-offline
 
 COPY frontend/ ./
-RUN node node_modules/vite/bin/vite.js build
+RUN npm run build
 
 
 # ── Stage 2: Python backend ───────────────────────────────────────────────────

@@ -130,10 +130,10 @@ export default function Sidebar() {
     const email     = localStorage.getItem('user_email')      || ''
     return { firstName, lastName, email }
   })
+  const [isMax, setIsMax] = useState(false)
 
   useEffect(() => {
     api.me().then(data => {
-      const p = data.self_person_id // we don't get name from /me directly
       const firstName = localStorage.getItem('user_first_name') || ''
       const lastName  = localStorage.getItem('user_last_name')  || ''
       setUser({ firstName, lastName, email: data.user?.email || '' })
@@ -148,6 +148,8 @@ export default function Sidebar() {
         setUser(prev => ({ ...prev, firstName: self.first_name || '', lastName: self.last_name || '' }))
       }
     }).catch(() => {})
+
+    api.getStats().then(d => setIsMax(!!d.is_max)).catch(() => {})
   }, [])
 
   const initials = ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase() || '?'
@@ -218,30 +220,52 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '12px 10px', overflow: 'auto' }}>
-        {NAV.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '9px 10px',
-              borderRadius: '8px',
-              marginBottom: '2px',
-              color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-              background: isActive ? 'var(--accent-dim)' : 'transparent',
-              fontFamily: 'DM Sans, sans-serif',
-              fontWeight: isActive ? 600 : 400,
-              fontSize: '14px',
-              textDecoration: 'none',
-              transition: 'background 0.15s, color 0.15s',
-            })}
-          >
-            {item.icon}
-            <span className="nav-label">{item.label}</span>
-          </NavLink>
-        ))}
+        {NAV.map((item) => {
+          const isTeam = item.to === '/team'
+          if (isTeam && !isMax) {
+            return (
+              <div
+                key={item.to}
+                title="Upgrade to Max to access Team"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '9px 10px', borderRadius: '8px', marginBottom: '2px',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'DM Sans, sans-serif', fontWeight: 400, fontSize: '14px',
+                  cursor: 'not-allowed', opacity: 0.45,
+                }}
+              >
+                {item.icon}
+                <span className="nav-label">{item.label}</span>
+                <span style={{ marginLeft: 'auto', fontSize: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '4px', padding: '1px 5px', color: 'var(--text-muted)' }}>Max</span>
+              </div>
+            )
+          }
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '9px 10px',
+                borderRadius: '8px',
+                marginBottom: '2px',
+                color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                background: isActive ? 'var(--accent-dim)' : 'transparent',
+                fontFamily: 'DM Sans, sans-serif',
+                fontWeight: isActive ? 600 : 400,
+                fontSize: '14px',
+                textDecoration: 'none',
+                transition: 'background 0.15s, color 0.15s',
+              })}
+            >
+              {item.icon}
+              <span className="nav-label">{item.label}</span>
+            </NavLink>
+          )
+        })}
       </nav>
 
       {/* Feedback link */}
