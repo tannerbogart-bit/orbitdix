@@ -72,8 +72,7 @@ export default function Dashboard() {
     }).catch(() => {})
   }, [])
 
-  const onboardingDone = localStorage.getItem('onboarding_complete') === '1'
-  const showSetupNudge = !onboardingDone && stats.connections !== '…' && (stats.connections ?? 0) === 0
+  const showSetupNudge = stats.connections !== '…' && (stats.connections ?? 0) === 0
   // Hide extension banner once user has connections (they've already synced)
   const hasConnections = stats.connections !== '…' && (stats.connections ?? 0) > 0
   const showExtBanner  = !bannerDismissed && !hasConnections

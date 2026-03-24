@@ -54,9 +54,9 @@ TOOLS = [
     {
         "name": "find_path",
         "description": (
-            "Find the shortest warm introduction path from the user to a target person. "
-            "Returns the full chain of intermediaries. Use this when the user wants to "
-            "reach someone specific."
+            "Find the shortest warm introduction path from the user to a specific named person. "
+            "Returns the full chain of intermediaries. Use this only when the user names a specific person. "
+            "If the user names a COMPANY (e.g. 'find a path to Stripe'), use find_path_to_company instead."
         ),
         "input_schema": {
             "type": "object",
@@ -67,6 +67,82 @@ TOOLS = [
                 }
             },
             "required": ["target_name"]
+        }
+    },
+    {
+        "name": "find_path_to_company",
+        "description": (
+            "Find the best warm introduction path into a target company. "
+            "Tries all known contacts at that company and returns the shortest reachable path. "
+            "Use this when the user says 'find a path to [Company]', 'get me into [Company]', "
+            "'who can introduce me to someone at [Company]', or any company-level path request. "
+            "Optionally prioritize reaching a person with a specific title (e.g. 'VP Sales', 'CTO')."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {
+                    "type": "string",
+                    "description": "Name of the target company to find a path into"
+                },
+                "preferred_title": {
+                    "type": "string",
+                    "description": "Optional: prioritize reaching someone with this title (e.g. 'VP Sales', 'Head of Engineering')"
+                }
+            },
+            "required": ["company_name"]
+        }
+    },
+    {
+        "name": "list_people_at_company",
+        "description": (
+            "List all people in the user's network who work at a specific company, with their titles. "
+            "Use this to understand who you know at a company before finding a path or drafting a message. "
+            "Useful for 'who do I know at X?' or 'who works at X in my network?'"
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {
+                    "type": "string",
+                    "description": "Name of the company to look up"
+                }
+            },
+            "required": ["company_name"]
+        }
+    },
+    {
+        "name": "save_outreach_draft",
+        "description": (
+            "Save a drafted intro message to the user's outreach tracker so they can act on it later. "
+            "Call this AFTER drafting a message and ONLY if the user explicitly asks to save it "
+            "or confirms they want it saved. Include the full message text and path details."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target_name": {
+                    "type": "string",
+                    "description": "Full name of the person being reached"
+                },
+                "target_company": {
+                    "type": "string",
+                    "description": "Company the target person works at"
+                },
+                "via_person_name": {
+                    "type": "string",
+                    "description": "Name of the bridge/connector being used for the intro"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "The full drafted message text"
+                },
+                "path_summary": {
+                    "type": "string",
+                    "description": "Human-readable path description, e.g. 'You → John Smith → Jane Doe at Stripe'"
+                }
+            },
+            "required": ["target_name", "via_person_name", "message"]
         }
     },
     {
@@ -482,6 +558,158 @@ def tool_get_outreach_history(user_id: int, company: str = "", status: str = "")
     }
 
 
+def tool_find_path_to_company(company_name: str, preferred_title: str, user_id: int, tenant_id: int) -> dict:
+    """Find the best warm path into a company by trying all known contacts there."""
+    self_person = Person.query.filter_by(user_id=user_id, is_self=True).first()
+    if not self_person:
+        return {"error": "Your profile (self person) not found in network"}
+
+    company_lower = company_name.strip().lower()
+    candidates = Person.query.filter(
+        Person.tenant_id == tenant_id,
+        Person.is_self == False,
+        Person.company.ilike(f"%{company_lower}%"),
+    ).all()
+
+    if not candidates:
+        return {"error": f"No one at '{company_name}' found in your network. Try importing more connections or check the company name."}
+
+    # Build adjacency
+    edges = Edge.query.filter_by(tenant_id=tenant_id).all()
+    adjacency: dict[int, list[int]] = {}
+    for edge in edges:
+        adjacency.setdefault(edge.from_person_id, []).append(edge.to_person_id)
+        adjacency.setdefault(edge.to_person_id, []).append(edge.from_person_id)
+
+    # Sort candidates: preferred title first, then direct connections first
+    preferred_lower = (preferred_title or "").lower()
+    direct_ids = set(adjacency.get(self_person.id, []))
+
+    def _rank(p):
+        title_match = 1 if preferred_lower and preferred_lower in (p.title or "").lower() else 0
+        is_direct = 1 if p.id in direct_ids else 0
+        return (-title_match, -is_direct)
+
+    candidates_sorted = sorted(candidates, key=_rank)
+
+    # BFS for each candidate, return shortest path found
+    target_ids = {p.id for p in candidates}
+    persons_by_id = {p.id: p for p in Person.query.filter(
+        Person.tenant_id == tenant_id
+    ).all()}
+
+    best_path = None
+    best_target = None
+
+    for target in candidates_sorted:
+        if target.id == self_person.id:
+            continue
+        if target.id in direct_ids:
+            # Direct connection — path length 1, no better possible
+            best_path = [self_person.id, target.id]
+            best_target = target
+            break
+
+        visited = {self_person.id}
+        queue: deque = deque([[self_person.id]])
+        found = None
+        while queue:
+            path_ids = queue.popleft()
+            current = path_ids[-1]
+            for neighbor in adjacency.get(current, []):
+                if neighbor == target.id:
+                    found = path_ids + [neighbor]
+                    break
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(path_ids + [neighbor])
+            if found:
+                break
+
+        if found:
+            if best_path is None or len(found) < len(best_path):
+                best_path = found
+                best_target = target
+                if len(found) == 2:
+                    break  # direct connection, can't get shorter
+
+    if not best_path or not best_target:
+        # All contacts at the company are unreachable — show who's there anyway
+        people_there = [
+            {"name": f"{p.first_name or ''} {p.last_name or ''}".strip(), "title": p.title}
+            for p in candidates[:5]
+        ]
+        return {
+            "error": f"No connection path found to anyone at {company_name}.",
+            "contacts_there": people_there,
+            "hint": "Your network has these people at the company but no edges connect you to them. Adding more connections or relationship edges may open a path.",
+        }
+
+    path_nodes = []
+    for pid in best_path:
+        p = persons_by_id.get(pid)
+        if p:
+            path_nodes.append(_person_dict(p))
+
+    return {
+        "company": company_name,
+        "target": _person_dict(best_target),
+        "path": path_nodes,
+        "degrees": len(best_path) - 1,
+        "people_at_company": len(candidates),
+        "other_contacts": [
+            {"name": f"{p.first_name or ''} {p.last_name or ''}".strip(), "title": p.title}
+            for p in candidates if p.id != best_target.id
+        ][:4],
+    }
+
+
+def tool_list_people_at_company(company_name: str, tenant_id: int) -> dict:
+    company_lower = company_name.strip().lower()
+    people = Person.query.filter(
+        Person.tenant_id == tenant_id,
+        Person.is_self == False,
+        Person.company.ilike(f"%{company_lower}%"),
+    ).order_by(Person.last_name).all()
+
+    if not people:
+        return {"people": [], "count": 0, "message": f"No one at '{company_name}' found in your network."}
+
+    return {
+        "company": company_name,
+        "count": len(people),
+        "people": [
+            {"name": f"{p.first_name or ''} {p.last_name or ''}".strip(), "title": p.title, "id": p.id}
+            for p in people
+        ],
+    }
+
+
+def tool_save_outreach_draft(
+    target_name: str, target_company: str, via_person_name: str,
+    message: str, path_summary: str, user_id: int, tenant_id: int
+) -> dict:
+    from datetime import datetime, timezone
+    record = Outreach(
+        user_id=user_id,
+        tenant_id=tenant_id,
+        target_name=target_name.strip(),
+        target_company=(target_company or "").strip() or None,
+        via_person_name=via_person_name.strip(),
+        message=message.strip(),
+        path_summary=(path_summary or "").strip() or None,
+        status="drafted",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.session.add(record)
+    db.session.commit()
+    return {
+        "success": True,
+        "message": f"Saved outreach draft for {target_name} to your Outreach Tracker.",
+        "id": record.id,
+    }
+
+
 def execute_tool(name: str, tool_input: dict, user_id: int, tenant_id: int) -> str:
     try:
         if name == "search_network":
@@ -506,6 +734,23 @@ def execute_tool(name: str, tool_input: dict, user_id: int, tenant_id: int) -> s
                 company=tool_input.get("company", ""),
                 status=tool_input.get("status", ""),
             )
+        elif name == "find_path_to_company":
+            result = tool_find_path_to_company(
+                tool_input["company_name"],
+                tool_input.get("preferred_title", ""),
+                user_id, tenant_id,
+            )
+        elif name == "list_people_at_company":
+            result = tool_list_people_at_company(tool_input["company_name"], tenant_id)
+        elif name == "save_outreach_draft":
+            result = tool_save_outreach_draft(
+                tool_input["target_name"],
+                tool_input.get("target_company", ""),
+                tool_input["via_person_name"],
+                tool_input["message"],
+                tool_input.get("path_summary", ""),
+                user_id, tenant_id,
+            )
         else:
             result = {"error": f"Unknown tool: {name}"}
     except Exception as e:
@@ -516,6 +761,7 @@ def execute_tool(name: str, tool_input: dict, user_id: int, tenant_id: int) -> s
 # ── SYSTEM PROMPT BUILDER ─────────────────────────────────────────────────────
 
 def _build_system_prompt(user_id: int, tenant_id: int) -> str:
+    from datetime import datetime, timezone
     self_person = Person.query.filter_by(user_id=user_id, is_self=True).first()
     ctx = AgentContext.query.filter_by(user_id=user_id).first()
 
@@ -523,9 +769,12 @@ def _build_system_prompt(user_id: int, tenant_id: int) -> str:
     if self_person:
         user_name = f"{self_person.first_name or ''} {self_person.last_name or ''}".strip() or "the user"
 
+    today_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
+
     lines = [
         "You are a strategic networking assistant for OrbitSix — a professional network intelligence platform built around the six-degrees-of-separation principle.",
-        f"\nThe user you're helping is {user_name}.",
+        f"\nToday's date: {today_str}",
+        f"The user you're helping is {user_name}.",
     ]
 
     if ctx:
@@ -667,16 +916,23 @@ def _build_system_prompt(user_id: int, tenant_id: int) -> str:
         "5. End with 1-2 opportunity companies worth adding as targets (from network data).",
         "6. Suggest ONE concrete next action the user should take today.",
 
+        "\n## Tool selection guide",
+        "- User says 'find a path to [Company]' → use find_path_to_company (NOT find_path)",
+        "- User says 'find a path to [Person name]' → use find_path",
+        "- User says 'who do I know at [Company]?' → use list_people_at_company",
+        "- User says 'analyze my gaps' / 'where is my network weak?' → use analyze_network_gaps",
+        "- User says 'save this' / 'save the draft' / 'add to outreach' → use save_outreach_draft",
+        "- Use search_network before referencing any specific person by name",
+        "- Use get_outreach_history when asked about past attempts, follow-ups, or pipeline status",
+        "- You already know the network size from the snapshot above — no need to call get_network_overview unless you need more detail",
+
         "\n## General guidelines",
         "- Always be specific and actionable — reference real people and paths from tool results",
-        "- Use search_network before referencing any specific person",
-        "- Use analyze_network_gaps when asked about gaps, blind spots, or where the network is weak",
-        "- Use find_path when the user wants to reach someone specific",
-        "- Use get_outreach_history when asked about past attempts, follow-ups, or pipeline status",
         "- If a path node has a 'prior_outreach_via' field, mention it so the user knows that bridge has been used",
         "- Keep responses concise and focused; lead with the most useful insight",
         "- If the network is small, acknowledge it and suggest strategic ways to grow it",
-        "- You already know the network size from the snapshot above — no need to call get_network_overview unless you need more detail",
+        "- After drafting an intro message, always offer to save it to the Outreach Tracker ('Want me to save this draft?')",
+        "- When find_path_to_company returns other_contacts, mention them briefly so the user knows who else is reachable at that company",
     ]
 
     return "\n".join(lines)

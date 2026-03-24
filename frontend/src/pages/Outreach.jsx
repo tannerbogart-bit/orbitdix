@@ -326,9 +326,14 @@ export default function OutreachPage() {
     setAllRecords(prev => prev.map(r => r.id === updated.id ? updated : r))
   }
 
-  function handleDelete(id) {
-    api.deleteOutreach(id).catch(() => {})
-    setAllRecords(prev => prev.filter(r => r.id !== id))
+  async function handleDelete(id) {
+    const snapshot = allRecords
+    setAllRecords(r => r.filter(x => x.id !== id))
+    try {
+      await api.deleteOutreach(id)
+    } catch {
+      setAllRecords(snapshot)  // revert on failure
+    }
   }
 
   const counts = {

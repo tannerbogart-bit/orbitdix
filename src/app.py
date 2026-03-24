@@ -38,10 +38,17 @@ def create_app():
         db_url = "sqlite:///" + str(db_path).replace("\\", "/")
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
+    is_sqlite = db_url.startswith("sqlite")
+    jwt_secret = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me" if is_sqlite else "")
+    secret_key = os.getenv("SECRET_KEY",     "dev-session-secret-change-me" if is_sqlite else "")
+    if not jwt_secret:
+        raise RuntimeError("JWT_SECRET_KEY environment variable must be set in production")
+    if not secret_key:
+        raise RuntimeError("SECRET_KEY environment variable must be set in production")
+    app.config["JWT_SECRET_KEY"] = jwt_secret
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
     # SECRET_KEY protects Flask session cookies (used for OAuth CSRF state)
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-session-secret-change-me")
+    app.config["SECRET_KEY"] = secret_key
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"]   = not db_url.startswith("sqlite")  # HTTPS only in production
@@ -49,12 +56,13 @@ def create_app():
     if not db_url.startswith("sqlite"):
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = PROD_POOL_OPTIONS
 
-    # Allow Vite dev server + Chrome extension (any extension ID)
-    CORS(app, origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        r"chrome-extension://.*",
-    ], supports_credentials=True, allow_headers=["Content-Type", "Authorization"])
+    # Allow Vite dev server + the specific Chrome extension (ID from env)
+    allowed_origins = ["http://localhost:5173", "http://localhost:5174"]
+    ext_id = os.getenv("CHROME_EXTENSION_ID", "")
+    if ext_id:
+        allowed_origins.append(f"chrome-extension://{ext_id}")
+    CORS(app, origins=allowed_origins,
+         supports_credentials=True, allow_headers=["Content-Type", "Authorization"])
     db.init_app(app)
     migrate.init_app(app, db)
     jwt = JWTManager(app)
@@ -91,6 +99,8 @@ def create_app():
 
     # Rate-limit sensitive auth endpoints (10 req/min per IP)
     limiter.limit("10 per minute")(auth_bp)
+    # Tighter limit on forgot-password — prevents email enumeration + spam
+    limiter.limit("3 per minute; 10 per hour")(auth_bp.view_functions["auth.forgot_password"])
 
     app.register_blueprint(agent_bp)
     app.register_blueprint(ai_bp)

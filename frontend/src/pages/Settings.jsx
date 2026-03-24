@@ -107,6 +107,11 @@ export default function Settings() {
   async function handleSaveProfile(e) {
     e.preventDefault()
     if (!profile.firstName.trim()) { setProfileError('First name is required'); return }
+    const liUrl = profile.linkedinUrl.trim()
+    if (liUrl && !liUrl.match(/^https?:\/\/(www\.)?linkedin\.com\/in\//i)) {
+      setProfileError('LinkedIn URL must be a valid linkedin.com/in/ profile URL')
+      return
+    }
     setProfileError(null)
     setProfileSaving(true)
     try {

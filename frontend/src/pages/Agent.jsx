@@ -2,15 +2,159 @@ import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api } from '../api/client'
 
+// Lightweight markdown renderer — handles patterns Claude commonly outputs
+function MarkdownMessage({ content, streaming }) {
+  if (!content) {
+    return streaming ? <span style={{ opacity: 0.5 }}>Thinking…</span> : null
+  }
+
+  const lines = content.split('\n')
+  const elements = []
+  let i = 0
+
+  function parseInline(text) {
+    // Split on bold, italic, inline code — process left to right
+    const parts = []
+    let remaining = text
+    let key = 0
+
+    while (remaining.length > 0) {
+      // Bold **text** or __text__
+      const bold = remaining.match(/^(.*?)\*\*(.+?)\*\*(.*)$/s)
+      const italic = remaining.match(/^(.*?)\*(.+?)\*(.*)$/s)
+      const code = remaining.match(/^(.*?)`([^`]+)`(.*)$/s)
+
+      // Find which match starts earliest
+      const boldIdx  = bold   ? bold[1].length   : Infinity
+      const italicIdx = italic ? italic[1].length : Infinity
+      const codeIdx  = code   ? code[1].length   : Infinity
+      const earliest = Math.min(boldIdx, italicIdx, codeIdx)
+
+      if (earliest === Infinity) {
+        parts.push(<span key={key++}>{remaining}</span>)
+        break
+      } else if (earliest === boldIdx) {
+        if (bold[1]) parts.push(<span key={key++}>{bold[1]}</span>)
+        parts.push(<strong key={key++}>{bold[2]}</strong>)
+        remaining = bold[3]
+      } else if (earliest === codeIdx) {
+        if (code[1]) parts.push(<span key={key++}>{code[1]}</span>)
+        parts.push(
+          <code key={key++} style={{
+            background: 'var(--bg-input)', border: '1px solid var(--border)',
+            borderRadius: '4px', padding: '1px 5px', fontSize: '12px',
+            fontFamily: 'monospace', color: 'var(--accent)',
+          }}>{code[2]}</code>
+        )
+        remaining = code[3]
+      } else {
+        if (italic[1]) parts.push(<span key={key++}>{italic[1]}</span>)
+        parts.push(<em key={key++}>{italic[2]}</em>)
+        remaining = italic[3]
+      }
+    }
+    return parts
+  }
+
+  while (i < lines.length) {
+    const line = lines[i]
+
+    // Code block ```
+    if (line.trim().startsWith('```')) {
+      const codeLines = []
+      i++
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(lines[i])
+        i++
+      }
+      elements.push(
+        <pre key={i} style={{
+          background: 'var(--bg-input)', border: '1px solid var(--border)',
+          borderRadius: '8px', padding: '12px 14px', overflowX: 'auto',
+          fontSize: '12px', fontFamily: 'monospace', margin: '8px 0', lineHeight: 1.6,
+        }}>
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      )
+      i++
+      continue
+    }
+
+    // H1/H2 heading
+    if (line.startsWith('## ')) {
+      elements.push(
+        <div key={i} style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)', marginTop: '14px', marginBottom: '4px' }}>
+          {parseInline(line.slice(3))}
+        </div>
+      )
+      i++; continue
+    }
+    if (line.startsWith('# ')) {
+      elements.push(
+        <div key={i} style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', marginTop: '14px', marginBottom: '6px' }}>
+          {parseInline(line.slice(2))}
+        </div>
+      )
+      i++; continue
+    }
+
+    // Bullet list — collect consecutive bullets
+    if (line.match(/^[-*•]\s+/) || line.match(/^\d+\.\s+/)) {
+      const listItems = []
+      const ordered = line.match(/^\d+\.\s+/)
+      while (i < lines.length && (lines[i].match(/^[-*•]\s+/) || lines[i].match(/^\d+\.\s+/))) {
+        const text = lines[i].replace(/^[-*•]\s+/, '').replace(/^\d+\.\s+/, '')
+        listItems.push(<li key={i} style={{ marginBottom: '3px' }}>{parseInline(text)}</li>)
+        i++
+      }
+      const Tag = ordered ? 'ol' : 'ul'
+      elements.push(
+        <Tag key={`list-${i}`} style={{ margin: '6px 0', paddingLeft: '20px', lineHeight: 1.6 }}>
+          {listItems}
+        </Tag>
+      )
+      continue
+    }
+
+    // Horizontal rule
+    if (line.match(/^---+$/) || line.match(/^\*\*\*+$/)) {
+      elements.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '10px 0' }} />)
+      i++; continue
+    }
+
+    // Empty line → spacing
+    if (line.trim() === '') {
+      // Only add spacing if the last element wasn't also a spacer
+      if (elements.length > 0) {
+        elements.push(<div key={i} style={{ height: '8px' }} />)
+      }
+      i++; continue
+    }
+
+    // Regular paragraph line
+    elements.push(
+      <div key={i} style={{ lineHeight: 1.65 }}>
+        {parseInline(line)}
+      </div>
+    )
+    i++
+  }
+
+  return <>{elements}</>
+}
+
 const TOOL_LABELS = {
-  search_network:        'Searching your network…',
-  find_path:             'Mapping connection path…',
-  get_network_overview:  'Analyzing your network…',
-  analyze_network_gaps:  'Running gap analysis…',
-  get_target_accounts:   'Loading target accounts…',
-  add_target_account:    'Saving target account…',
-  remove_target_account: 'Removing target account…',
-  get_outreach_history:  'Checking outreach history…',
+  search_network:          'Searching your network…',
+  find_path:               'Mapping connection path…',
+  find_path_to_company:    'Finding best path into company…',
+  list_people_at_company:  'Looking up contacts at company…',
+  save_outreach_draft:     'Saving to Outreach Tracker…',
+  get_network_overview:    'Analyzing your network…',
+  analyze_network_gaps:    'Running gap analysis…',
+  get_target_accounts:     'Loading target accounts…',
+  add_target_account:      'Saving target account…',
+  remove_target_account:   'Removing target account…',
+  get_outreach_history:    'Checking outreach history…',
 }
 
 const SUGGESTION_ICONS = {
@@ -36,21 +180,27 @@ export default function Agent() {
   const [newCompany, setNewCompany] = useState('')
   const [addingTarget, setAddingTarget] = useState(false)
 
-  const [suggestions, setSuggestions] = useState([])
-  const [contextOpen, setContextOpen] = useState(true)
-  const [clearing, setClearing]       = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [quota, setQuota]             = useState(null)  // { used, limit } or null if unlimited
+  const [suggestions, setSuggestions]         = useState([])
+  const [contextOpen, setContextOpen]         = useState(true)
+  const [clearing, setClearing]               = useState(false)
+  const [sidebarOpen, setSidebarOpen]         = useState(false)
+  const [quota, setQuota]                     = useState(null)
+  const [outreachSaved, setOutreachSaved]     = useState(false)  // show "View in Outreach" link after save
 
   const messagesEndRef = useRef(null)
   const abortRef       = useRef(null)
   const location       = useLocation()
 
-  // Pre-fill input when navigated from Targets page with a prompt
+  // Pre-fill input from state (Targets page) or ?prompt= query param (Find Path no-path CTA)
   useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const qPrompt = params.get('prompt')
     if (location.state?.prompt) {
       setInput(location.state.prompt)
-      window.history.replaceState({}, '')  // clear state so refresh doesn't re-fire
+      window.history.replaceState({}, '')
+    } else if (qPrompt) {
+      setInput(qPrompt)
+      window.history.replaceState({}, '', '/agent')  // clean URL after reading
     }
   }, [])
 
@@ -202,6 +352,7 @@ export default function Agent() {
               setActiveTools(prev => [...prev, event.tool])
             } else if (event.type === 'tool_done') {
               setActiveTools(prev => prev.filter(t => t !== event.tool))
+              if (event.tool === 'save_outreach_draft') setOutreachSaved(true)
             } else if (event.type === 'suggestions') {
               setSuggestions(event.items || [])
             } else if (event.type === 'error') {
@@ -535,11 +686,11 @@ export default function Agent() {
                   </svg>
                 </div>
               )}
-              <div style={{ maxWidth: '80%', padding: msg.role === 'user' ? '10px 14px' : '12px 16px', background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-card)', border: msg.role === 'user' ? 'none' : '1px solid var(--border)', borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '4px 14px 14px 14px', color: msg.role === 'user' ? 'white' : 'var(--text-primary)', fontSize: '14px', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {msg.content}
-                {msg.role === 'assistant' && i === messages.length - 1 && streaming && !msg.content && (
-                  <span style={{ opacity: 0.5 }}>Thinking…</span>
-                )}
+              <div style={{ maxWidth: '80%', padding: msg.role === 'user' ? '10px 14px' : '12px 16px', background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-card)', border: msg.role === 'user' ? 'none' : '1px solid var(--border)', borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '4px 14px 14px 14px', color: msg.role === 'user' ? 'white' : 'var(--text-primary)', fontSize: '14px', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.6, wordBreak: 'break-word' }}>
+                {msg.role === 'user'
+                  ? <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                  : <MarkdownMessage content={msg.content} streaming={i === messages.length - 1 && streaming} />
+                }
               </div>
             </div>
           ))}
@@ -559,6 +710,17 @@ export default function Agent() {
                   {s.label}
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Outreach saved confirmation */}
+          {outreachSaved && (
+            <div style={{ maxWidth: '720px', margin: '0 auto 8px', paddingLeft: '38px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 14px', background: 'rgba(52,211,153,0.08)', border: '1px solid var(--success)', borderRadius: '8px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', color: 'var(--success)' }}>
+                ✓ Draft saved to Outreach Tracker
+                <a href="/outreach" style={{ color: 'var(--success)', fontWeight: 600, textDecoration: 'underline', marginLeft: '4px' }}>View →</a>
+                <button onClick={() => setOutreachSaved(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', opacity: 0.6, padding: '0 2px', lineHeight: 1, fontSize: '14px' }}>×</button>
+              </div>
             </div>
           )}
 

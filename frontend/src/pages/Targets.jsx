@@ -524,11 +524,16 @@ export default function Targets() {
 
   async function handleBulkImported(result) {
     setShowImport(false)
-    if (result.added_count > 0) {
-      toast?.add(`${result.added_count} compan${result.added_count === 1 ? 'y' : 'ies'} added`, 'success')
+    const added   = result.added_count   || 0
+    const skipped = (result.skipped || []).length
+    if (added > 0) {
+      const msg = skipped > 0
+        ? `${added} compan${added === 1 ? 'y' : 'ies'} added · ${skipped} already in list`
+        : `${added} compan${added === 1 ? 'y' : 'ies'} added`
+      toast?.add(msg, 'success')
       loadAll()
     } else {
-      toast?.add('All companies already in your list', 'info')
+      toast?.add('All companies already in your target list', 'info')
     }
   }
 

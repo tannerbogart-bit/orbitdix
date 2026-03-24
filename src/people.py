@@ -18,7 +18,8 @@ from .saved_paths import log_activity
 
 bp = Blueprint("people", __name__)
 
-MAX_BATCH = 200
+MAX_BATCH        = 200
+MAX_PAYLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 def _person_dict(p):
@@ -188,6 +189,9 @@ def bulk_import_people():
     user = db.session.get(User, user_id)
     if user is None:
         return jsonify(error="User not found"), 404
+
+    if request.content_length and request.content_length > MAX_PAYLOAD_BYTES:
+        return jsonify(error="Payload too large. Maximum 5 MB per import."), 413
 
     data = request.get_json(silent=True) or {}
     people_data = data.get("people")

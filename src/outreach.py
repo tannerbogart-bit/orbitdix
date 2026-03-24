@@ -49,16 +49,21 @@ def create_outreach():
         return jsonify(error="User not found"), 404
 
     data = request.get_json(silent=True) or {}
+
+    def _str(key, max_len):
+        v = (data.get(key) or "").strip()
+        return v[:max_len] if v else None
+
     record = Outreach(
         user_id         = user_id,
         tenant_id       = user.tenant_id,
-        target_name     = data.get("target_name"),
-        target_company  = data.get("target_company"),
-        via_person_name = data.get("via_person_name"),
-        path_summary    = data.get("path_summary"),
-        message         = data.get("message"),
+        target_name     = _str("target_name",     255),
+        target_company  = _str("target_company",  255),
+        via_person_name = _str("via_person_name", 255),
+        path_summary    = _str("path_summary",    1000),
+        message         = _str("message",         10000),
         status          = data.get("status", "drafted"),
-        notes           = data.get("notes"),
+        notes           = _str("notes",           2000),
     )
     db.session.add(record)
     db.session.commit()

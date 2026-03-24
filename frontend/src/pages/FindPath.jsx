@@ -63,16 +63,35 @@ function PathDetailPanel({ pathPeople, edges, target, onDraftMessage, onReset, o
   if (!pathPeople) return null
 
   if (pathPeople.length === 0) {
+    const targetName = target ? `${target.first_name} ${target.last_name}`.trim() : null
+    const agentPrompt = targetName
+      ? `Find the best path to ${targetName}${target.company ? ` at ${target.company}` : ''} — who in my network can bridge me in?`
+      : 'Help me find a warm path to someone in my network.'
     return (
       <div className="card" style={{ padding: '28px', textAlign: 'center', marginTop: '24px' }}>
         <div style={{ fontSize: '32px', marginBottom: '12px' }}>🌑</div>
         <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: '18px', fontWeight: 700, margin: '0 0 8px' }}>
           No path found
         </h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 20px' }}>
-          These two people aren&apos;t connected in your current network.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 8px' }}>
+          {targetName
+            ? `${targetName} isn't reachable through your current network connections.`
+            : "These two people aren't connected in your current network."}
         </p>
-        <button className="btn-ghost" onClick={onReset}>Try again</button>
+        <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '0 0 20px', lineHeight: 1.5 }}>
+          Your AI Agent can suggest bridge contacts, run a gap analysis, or recommend who to add to your network to open this path.
+        </p>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <a
+            href="/agent"
+            onClick={e => { e.preventDefault(); window.location.href = `/agent?prompt=${encodeURIComponent(agentPrompt)}` }}
+            className="btn-primary"
+            style={{ fontSize: '13px', padding: '8px 18px', textDecoration: 'none' }}
+          >
+            Ask AI Agent for help
+          </a>
+          <button className="btn-ghost" style={{ fontSize: '13px', padding: '8px 18px' }} onClick={onReset}>Try someone else</button>
+        </div>
       </div>
     )
   }
@@ -217,14 +236,19 @@ export default function FindPath() {
   const [modal, setModal]           = useState(null)
   const [upgradeMsg, setUpgradeMsg] = useState(null)
   const [step, setStep]             = useState('select')
-  const [savedPaths, setSavedPaths] = useState(new Set())
+  const [savedPaths, setSavedPaths]   = useState(new Set())
+  const [loadError, setLoadError]     = useState(false)
 
-  useEffect(() => {
+  function loadNetwork() {
+    setLoadingPeople(true)
+    setLoadError(false)
     Promise.all([api.listPeople(), api.listEdges()])
       .then(([pd, ed]) => { setPeople(pd.people || []); setEdges(ed.edges || []) })
-      .catch(() => toast?.add('Failed to load contacts', 'error'))
+      .catch(() => { setLoadError(true); toast?.add('Failed to load contacts', 'error') })
       .finally(() => setLoadingPeople(false))
-  }, [])
+  }
+
+  useEffect(() => { loadNetwork() }, [])
 
   const me = people.find(p => p.is_self)
   const others = people.filter(p => !p.is_self)
@@ -363,6 +387,14 @@ export default function FindPath() {
                 {loadingPeople ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
                     Loading your network…
+                  </div>
+                ) : loadError ? (
+                  <div className="card" style={{ padding: '24px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '28px', marginBottom: '10px' }}>⚠️</div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 14px' }}>
+                      Failed to load your network. Check your connection and try again.
+                    </p>
+                    <button className="btn-ghost" style={{ fontSize: '13px' }} onClick={loadNetwork}>Retry</button>
                   </div>
                 ) : filtered.length === 0 && query ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>

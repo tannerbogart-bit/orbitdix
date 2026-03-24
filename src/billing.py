@@ -79,16 +79,12 @@ def stripe_webhook():
     sig_header     = request.headers.get("Stripe-Signature", "")
 
     if not webhook_secret or webhook_secret == "whsec_REPLACE_ME":
-        # Dev fallback: skip signature verification
-        try:
-            event = stripe.Event.construct_from(request.get_json(), stripe.api_key)
-        except Exception:
-            return jsonify(error="Bad payload"), 400
-    else:
-        try:
-            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
-        except stripe.errors.SignatureVerificationError:
-            return jsonify(error="Invalid signature"), 400
+        return jsonify(error="Webhook secret not configured"), 500
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except stripe.errors.SignatureVerificationError:
+        return jsonify(error="Invalid signature"), 400
 
     if event["type"] == "checkout.session.completed":
         session  = event["data"]["object"]

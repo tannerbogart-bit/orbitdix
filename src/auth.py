@@ -12,6 +12,15 @@ from .models import Person, Tenant, User, db
 bp = Blueprint("auth", __name__)
 
 
+def _validate_password(password: str) -> str | None:
+    """Return an error string if password fails policy, else None."""
+    if len(password) < 8:
+        return "Password must be at least 8 characters"
+    if not any(c.isdigit() for c in password) and not any(not c.isalnum() for c in password):
+        return "Password must contain at least one number or special character"
+    return None
+
+
 @bp.post("/api/auth/signup")
 def signup():
     data = request.get_json(silent=True) or {}
@@ -22,11 +31,9 @@ def signup():
     if not tenant_name or not email or not password:
         return jsonify(error="tenant_name, email, and password are required"), 400
 
-    if len(password) < 8:
-        return jsonify(error="Password must be at least 8 characters"), 400
-
-    if not any(c.isdigit() or not c.isalpha() for c in password):
-        return jsonify(error="Password must contain at least one number or special character"), 400
+    pw_error = _validate_password(password)
+    if pw_error:
+        return jsonify(error=pw_error), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify(error="Email already registered"), 409
@@ -185,10 +192,8 @@ def forgot_password():
 
         sent = send_password_reset(email, reset_link)
         if not sent:
-            # No email provider configured — surface the link in dev
+            # No email provider configured — log to server console only, never in response
             print(f"[DEV] Password reset link: {reset_link}", flush=True)
-            if current_app.debug:
-                resp["dev_reset_link"] = reset_link
 
     return jsonify(**resp)
 
@@ -209,6 +214,10 @@ def reset_password():
         return jsonify(error="Reset link has expired. Please request a new one."), 400
     except BadSignature:
         return jsonify(error="Invalid reset link."), 400
+
+    pw_error = _validate_password(new_password)
+    if pw_error:
+        return jsonify(error=pw_error), 400
 
     user = User.query.filter_by(email=email).first()
     if not user:
