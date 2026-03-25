@@ -13,10 +13,11 @@ export default function OAuthCallback() {
     const fragment = window.location.hash.slice(1) // strip leading '#'
     const params   = new URLSearchParams(fragment)
 
-    const token    = params.get('token')
-    const userId   = params.get('user_id')
-    const tenantId = params.get('tenant_id')
-    const err      = params.get('error')
+    const token        = params.get('token')
+    const refreshToken = params.get('refresh_token')
+    const userId       = params.get('user_id')
+    const tenantId     = params.get('tenant_id')
+    const err          = params.get('error')
 
     if (err) {
       setError(decodeURIComponent(err))
@@ -30,8 +31,9 @@ export default function OAuthCallback() {
 
     // Persist JWT for subsequent API calls
     localStorage.setItem('access_token', token)
-    if (userId)   localStorage.setItem('user_id',   userId)
-    if (tenantId) localStorage.setItem('tenant_id', tenantId)
+    if (refreshToken) localStorage.setItem('refresh_token', refreshToken)
+    if (userId)       localStorage.setItem('user_id',       userId)
+    if (tenantId)     localStorage.setItem('tenant_id',     tenantId)
 
     // Clear the fragment so the token is not visible in history
     window.history.replaceState(null, '', window.location.pathname)

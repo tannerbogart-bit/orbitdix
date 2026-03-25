@@ -21,7 +21,7 @@ import secrets
 
 from authlib.integrations.requests_client import OAuth2Session
 from flask import Blueprint, current_app, jsonify, redirect, request, session
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, create_refresh_token
 from werkzeug.security import generate_password_hash
 
 from .db import db
@@ -225,11 +225,13 @@ def oauth_callback(provider):
     user = _find_or_create_user(profile)
 
     # ── Issue JWT and send to frontend ────────────────────────────────────────
-    access_token = create_access_token(identity=str(user.id))
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    access_token  = create_access_token(identity=str(user.id))
+    refresh_token = create_refresh_token(identity=str(user.id))
+    frontend_url  = os.getenv("FRONTEND_URL", "http://localhost:5173")
     return redirect(
         f"{frontend_url}/auth/oauth-callback"
         f"#token={access_token}"
+        f"&refresh_token={refresh_token}"
         f"&user_id={user.id}"
         f"&tenant_id={user.tenant_id}"
     )

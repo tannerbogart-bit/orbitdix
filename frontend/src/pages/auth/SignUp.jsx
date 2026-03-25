@@ -61,6 +61,7 @@ export default function SignUp() {
         return
       }
       localStorage.setItem('access_token', data.access_token)
+      if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token)
       navigate('/onboarding', { replace: true })
     } catch {
       setError('Could not reach server. Is Flask running?')

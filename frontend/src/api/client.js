@@ -2,9 +2,43 @@
 
 const BASE = '/api'
 
-function authHeaders() {
-  const token = localStorage.getItem('access_token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
+function authHeaders(token) {
+  const t = token || localStorage.getItem('access_token')
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+
+// Singleton refresh promise — prevents multiple concurrent refresh calls
+let _refreshPromise = null
+
+async function _doRefresh() {
+  const refreshToken = localStorage.getItem('refresh_token')
+  if (!refreshToken) return null
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${refreshToken}` },
+    })
+    if (!res.ok) {
+      localStorage.removeItem('refresh_token')
+      return null
+    }
+    const data = await res.json()
+    localStorage.setItem('access_token', data.access_token)
+    return data.access_token
+  } catch {
+    return null
+  }
+}
+
+async function tryRefresh() {
+  if (!_refreshPromise) _refreshPromise = _doRefresh().finally(() => { _refreshPromise = null })
+  return _refreshPromise
+}
+
+function clearSession() {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  window.location.href = '/auth/signin'
 }
 
 async function req(method, path, body) {
@@ -15,12 +49,29 @@ async function req(method, path, body) {
   if (body !== undefined) opts.body = JSON.stringify(body)
   const res = await fetch(BASE + path, opts)
   if (res.status === 204) return null
-  // Expired / invalid token — clear storage and redirect to sign-in
-  if (res.status === 401 && path !== '/auth/login') {
-    localStorage.removeItem('access_token')
-    window.location.href = '/auth/signin'
+
+  // On 401, try a silent token refresh then retry once
+  if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
+    const newToken = await tryRefresh()
+    if (newToken) {
+      const retry = await fetch(BASE + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', ...authHeaders(newToken) },
+      })
+      if (retry.status === 204) return null
+      if (retry.status === 401) { clearSession(); return null }
+      const retryJson = await retry.json()
+      if (!retry.ok) {
+        const err = new Error(retryJson.error || `HTTP ${retry.status}`)
+        if (retryJson.upgrade_required) err.upgradeRequired = true
+        throw err
+      }
+      return retryJson
+    }
+    clearSession()
     return null
   }
+
   const json = await res.json()
   if (!res.ok) {
     const err = new Error(json.error || `HTTP ${res.status}`)

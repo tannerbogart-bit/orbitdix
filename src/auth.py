@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 
 from flask import Blueprint, current_app, jsonify, request
-from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, jwt_required
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -62,7 +62,8 @@ def signup():
     db.session.add(self_person)
     db.session.commit()
 
-    access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(hours=24))
+    access_token  = create_access_token(identity=str(user.id), expires_delta=timedelta(hours=24))
+    refresh_token = create_refresh_token(identity=str(user.id))
 
     # Send emails (non-blocking — failure doesn't break signup)
     _send_verification(user, current_app)
@@ -74,6 +75,7 @@ def signup():
     return (
         jsonify(
             access_token=access_token,
+            refresh_token=refresh_token,
             user_id=user.id,
             tenant_id=tenant.id,
             person_id=self_person.id,
@@ -95,7 +97,16 @@ def login():
     if user is None or not check_password_hash(user.password_hash, password):
         return jsonify(error="Invalid credentials"), 401
 
-    access_token = create_access_token(identity=str(user.id), expires_delta=timedelta(hours=24))
+    access_token  = create_access_token(identity=str(user.id), expires_delta=timedelta(hours=24))
+    refresh_token = create_refresh_token(identity=str(user.id))
+    return jsonify(access_token=access_token, refresh_token=refresh_token)
+
+
+@bp.post("/api/auth/refresh")
+@jwt_required(refresh=True)
+def refresh_token_endpoint():
+    user_id = get_jwt_identity()
+    access_token = create_access_token(identity=user_id, expires_delta=timedelta(hours=24))
     return jsonify(access_token=access_token)
 
 
