@@ -155,10 +155,11 @@ def oauth_login(provider):
         return jsonify(error=f"Unknown provider: {provider}"), 404
 
     if not cfg["client_id"]:
-        return jsonify(
-            error=f"{provider.title()} OAuth is not configured on this server. "
-                  f"Set {provider.upper()}_CLIENT_ID and {provider.upper()}_CLIENT_SECRET in .env."
-        ), 503
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        return redirect(
+            f"{frontend_url}/auth/signin"
+            f"?error={provider}_not_configured"
+        )
 
     state = secrets.token_urlsafe(32)
     session["oauth_state"]    = state

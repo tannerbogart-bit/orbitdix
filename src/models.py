@@ -63,9 +63,11 @@ class Person(db.Model):
     last_name         = db.Column(db.String(255), nullable=True)
     email             = db.Column(db.String(255), nullable=True)
     linkedin_url      = db.Column(db.String(500), nullable=True)
+    linkedin_id       = db.Column(db.String(255), nullable=True)   # username slug from linkedin.com/in/<id>
     title             = db.Column(db.String(255), nullable=True)
     company           = db.Column(db.String(255), nullable=True)
     profile_image_url = db.Column(db.String(1000), nullable=True)
+    source            = db.Column(db.String(50),  nullable=True)   # chrome_extension | csv_import | manual | oauth
     created_at        = db.Column(db.DateTime,    default=lambda: datetime.now(timezone.utc))
 
     tenant = db.relationship("Tenant", back_populates="persons")

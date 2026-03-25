@@ -166,13 +166,18 @@
 
     console.log(`[OrbitSix] ${firstName} ${lastName} | ${occupation} | ${href}`);
 
+    // Extract linkedin_id slug from URL (e.g. "john-doe-123" from /in/john-doe-123)
+    const linkedinId = href.replace(/^\/in\//, '').replace(/\/$/, '') || undefined;
+
     return {
       first_name:        firstName,
       last_name:         lastName,
       title,
       company,
       linkedin_url:      linkedinUrl,
+      linkedin_id:       linkedinId,
       profile_image_url: profileImageUrl || undefined,
+      source:            'chrome_extension',
     };
   }
 

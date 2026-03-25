@@ -217,12 +217,19 @@ def bulk_import_people():
         # Trim the batch to fit within the limit
         people_data = people_data[:remaining]
 
-    # Pre-fetch existing people keyed by linkedin_url and email
+    # Pre-fetch existing people keyed by linkedin_url, linkedin_id, and email
     existing_by_url = {
         p.linkedin_url: p
         for p in Person.query.filter(
             Person.tenant_id == tenant_id,
             Person.linkedin_url.isnot(None),
+        ).all()
+    }
+    existing_by_lid = {
+        p.linkedin_id: p
+        for p in Person.query.filter(
+            Person.tenant_id == tenant_id,
+            Person.linkedin_id.isnot(None),
         ).all()
     }
     existing_by_email = {
@@ -238,18 +245,27 @@ def bulk_import_people():
     skipped  = 0
     new_people = []
     seen_urls   = set(existing_by_url.keys())
+    seen_lids   = set(existing_by_lid.keys())
     seen_emails = set(existing_by_email.keys())
 
     for item in people_data:
         linkedin_url = _clean(item.get("linkedin_url"))
+        linkedin_id  = _clean(item.get("linkedin_id"))
         email        = _clean(item.get("email"))
         title             = _clean(item.get("title"))
         company           = _clean(item.get("company"))
         profile_image_url = _clean(item.get("profile_image_url"))
+        source            = _clean(item.get("source")) or "manual"
+
+        # Derive linkedin_id from URL if not supplied
+        if not linkedin_id and linkedin_url:
+            linkedin_id = linkedin_url.rstrip("/").split("/in/")[-1] if "/in/" in linkedin_url else None
 
         # If person already exists, fill in any missing enrichment fields
         existing = (
             existing_by_url.get(linkedin_url) if linkedin_url else None
+        ) or (
+            existing_by_lid.get(linkedin_id) if linkedin_id else None
         ) or (
             existing_by_email.get(email) if email else None
         )
@@ -265,6 +281,12 @@ def bulk_import_people():
             if not existing.profile_image_url and profile_image_url:
                 existing.profile_image_url = profile_image_url
                 changed = True
+            if not existing.linkedin_id and linkedin_id:
+                existing.linkedin_id = linkedin_id
+                changed = True
+            if not existing.linkedin_url and linkedin_url:
+                existing.linkedin_url = linkedin_url
+                changed = True
             if changed:
                 updated += 1
             else:
@@ -273,6 +295,9 @@ def bulk_import_people():
 
         # Deduplicate within the current batch
         if linkedin_url and linkedin_url in seen_urls:
+            skipped += 1
+            continue
+        if linkedin_id and linkedin_id in seen_lids:
             skipped += 1
             continue
         if email and email in seen_emails:
@@ -285,15 +310,18 @@ def bulk_import_people():
             last_name         = _clean(item.get("last_name")),
             email             = email,
             linkedin_url      = linkedin_url,
+            linkedin_id       = linkedin_id,
             title             = title,
             company           = company,
             profile_image_url = profile_image_url,
+            source            = source,
             is_self           = False,
         )
         new_people.append(person)
         imported += 1
 
         if linkedin_url: seen_urls.add(linkedin_url)
+        if linkedin_id:  seen_lids.add(linkedin_id)
         if email:        seen_emails.add(email)
 
     if new_people:

@@ -1,8 +1,8 @@
 // Step 1 — Sign In
 // OAuth buttons do a full-page redirect to the Flask backend (/api/auth/<provider>/login)
 // which redirects to the provider, then back to /auth/oauth-callback with a JWT.
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AuthShell from './AuthShell'
 
 const OAUTH_PROVIDERS = [
@@ -27,12 +27,20 @@ const OAUTH_PROVIDERS = [
 ]
 
 export default function SignIn() {
-  const navigate  = useNavigate()
+  const navigate        = useNavigate()
+  const [searchParams]  = useSearchParams()
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
   const [showPw,   setShowPw]   = useState(false)
+
+  useEffect(() => {
+    const e = searchParams.get('error')
+    if (e === 'google_not_configured')    setError('Google sign-in is not enabled on this server yet.')
+    if (e === 'linkedin_not_configured')  setError('LinkedIn sign-in is not enabled on this server yet.')
+    if (e === 'microsoft_not_configured') setError('Microsoft sign-in is not enabled on this server yet.')
+  }, [])
 
   // Full-page redirect — the backend handles the OAuth flow and eventually
   // redirects the browser to /auth/oauth-callback#token=...

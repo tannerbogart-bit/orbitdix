@@ -97,11 +97,6 @@ def create_app():
     from .people import bp as people_bp
     from .saved_paths import bp as saved_paths_bp
 
-    # Rate-limit sensitive auth endpoints (10 req/min per IP)
-    limiter.limit("10 per minute")(auth_bp)
-    # Tighter limit on forgot-password — prevents email enumeration + spam
-    limiter.limit("3 per minute; 10 per hour")(auth_bp.view_functions["auth.forgot_password"])
-
     app.register_blueprint(agent_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(auth_bp)
@@ -112,6 +107,12 @@ def create_app():
     app.register_blueprint(outreach_bp)
     app.register_blueprint(people_bp)
     app.register_blueprint(saved_paths_bp)
+
+    # Rate-limit sensitive auth endpoints (10 req/min per IP)
+    # Must run after register_blueprint so view_functions are populated on the app
+    limiter.limit("10 per minute")(auth_bp)
+    # Tighter limit on forgot-password — prevents email enumeration + spam
+    limiter.limit("3 per minute; 10 per hour")(app.view_functions["auth.forgot_password"])
 
     @app.get("/health")
     def health():
