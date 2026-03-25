@@ -15,7 +15,7 @@
  *   4. Shows badge feedback when done
  */
 
-const DEFAULT_API_BASE     = 'https://orbitsix.com';
+const DEFAULT_API_BASE     = 'https://orbitsix.ai';
 const CONNECTIONS_URL      = 'https://www.linkedin.com/mynetwork/invite-connect/connections/';
 const BATCH_SIZE           = 20;
 const AUTO_SYNC_COOLDOWN_MS = 24 * 60 * 60 * 1000;   // 24 hours

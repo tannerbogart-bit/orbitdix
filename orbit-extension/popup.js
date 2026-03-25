@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = 'https://orbitsix.com';
+const DEFAULT_API_BASE = 'https://orbitsix.ai';
 let API_BASE = DEFAULT_API_BASE;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
