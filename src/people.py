@@ -31,7 +31,9 @@ def _person_dict(p):
         "title":             p.title,
         "company":           p.company,
         "linkedin_url":      p.linkedin_url,
+        "linkedin_id":       p.linkedin_id,
         "profile_image_url": p.profile_image_url,
+        "source":            p.source,
         "is_self":           p.is_self,
     }
 
