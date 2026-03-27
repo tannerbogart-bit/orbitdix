@@ -145,14 +145,45 @@ function StepImport({ onDone, onSkip }) {  // onDone(count), onSkip()
         Import your LinkedIn network
       </h2>
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 24px', lineHeight: 1.5 }}>
-        Export your connections from LinkedIn, then drop the CSV here. OrbitSix maps every path between you and your targets.
+        Connect your LinkedIn network so OrbitSix can map warm paths to anyone you want to reach.
       </p>
 
-      {/* How to export */}
-      <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '14px 16px', marginBottom: '20px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-        <strong style={{ color: 'var(--text-primary)' }}>How to export from LinkedIn:</strong>
-        <br />
-        Settings &amp; Privacy → Data Privacy → Get a copy of your data → Connections → Request archive
+      {/* Option 1 — Chrome Extension */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)', borderRadius: '12px', padding: '18px 20px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+          <span style={{ fontSize: '20px' }}>🔌</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>Chrome Extension <span style={{ background: 'var(--accent)', color: 'white', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', marginLeft: '6px' }}>Recommended</span></div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Syncs automatically every time you browse LinkedIn</div>
+          </div>
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '12px', paddingLeft: '30px' }}>
+          1. Download the extension zip from your invite email or ask your admin<br />
+          2. Go to <strong style={{ color: 'var(--text-primary)' }}>chrome://extensions</strong> in Chrome<br />
+          3. Enable <strong style={{ color: 'var(--text-primary)' }}>Developer Mode</strong> (top right toggle)<br />
+          4. Click <strong style={{ color: 'var(--text-primary)' }}>Load unpacked</strong> → select the unzipped folder<br />
+          5. Visit your LinkedIn connections page — it syncs automatically
+        </div>
+        <button
+          className="btn-primary"
+          style={{ fontSize: '13px', padding: '8px 16px' }}
+          onClick={() => window.open('https://www.linkedin.com/mynetwork/invite-connect/connections/', '_blank')}
+        >
+          Open LinkedIn to sync →
+        </button>
+      </div>
+
+      {/* Divider */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '16px 0', color: 'var(--text-muted)', fontSize: '12px' }}>
+        <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+        or import manually via CSV
+        <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+      </div>
+
+      {/* Option 2 — CSV */}
+      <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '14px 16px', marginBottom: '14px', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <strong style={{ color: 'var(--text-primary)' }}>Export from LinkedIn:</strong>
+        {' '}Settings &amp; Privacy → Data Privacy → Get a copy of your data → Connections → Request archive
       </div>
 
       {error && (
@@ -161,7 +192,6 @@ function StepImport({ onDone, onSkip }) {  // onDone(count), onSkip()
         </div>
       )}
 
-      {/* Drop zone */}
       <div
         onDragOver={e => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
@@ -170,12 +200,12 @@ function StepImport({ onDone, onSkip }) {  // onDone(count), onSkip()
         style={{
           border: `2px dashed ${dragging ? 'var(--accent)' : 'var(--border)'}`,
           borderRadius: '12px',
-          padding: '36px 20px',
+          padding: '28px 20px',
           textAlign: 'center',
           cursor: 'pointer',
-          background: dragging ? 'var(--accent-dim)' : 'var(--bg-input)',
+          background: dragging ? 'var(--accent-dim)' : 'transparent',
           transition: 'all 0.15s',
-          marginBottom: '16px',
+          marginBottom: '12px',
         }}
       >
         <input
@@ -189,9 +219,8 @@ function StepImport({ onDone, onSkip }) {  // onDone(count), onSkip()
           <div style={{ color: 'var(--accent)', fontSize: '14px' }}>Importing connections…</div>
         ) : (
           <>
-            <div style={{ fontSize: '28px', marginBottom: '10px' }}>📥</div>
-            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Drop your CSV here</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>or click to browse</div>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>📥</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>Drop CSV here or click to browse</div>
           </>
         )}
       </div>
