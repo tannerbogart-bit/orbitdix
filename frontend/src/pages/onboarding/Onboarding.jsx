@@ -164,13 +164,23 @@ function StepImport({ onDone, onSkip }) {  // onDone(count), onSkip()
           4. Click <strong style={{ color: 'var(--text-primary)' }}>Load unpacked</strong> → select the unzipped folder<br />
           5. Visit your LinkedIn connections page — it syncs automatically
         </div>
-        <button
-          className="btn-primary"
-          style={{ fontSize: '13px', padding: '8px 16px' }}
-          onClick={() => window.open('https://www.linkedin.com/mynetwork/invite-connect/connections/', '_blank')}
-        >
-          Open LinkedIn to sync →
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <a
+            href="/api/extension/download"
+            download
+            className="btn-primary"
+            style={{ fontSize: '13px', padding: '8px 16px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            ⬇ Download Extension
+          </a>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: '13px', padding: '8px 16px' }}
+            onClick={() => window.open('https://www.linkedin.com/mynetwork/invite-connect/connections/', '_blank')}
+          >
+            Open LinkedIn to sync →
+          </button>
+        </div>
       </div>
 
       {/* Divider */}

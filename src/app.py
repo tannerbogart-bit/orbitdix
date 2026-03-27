@@ -123,6 +123,19 @@ def create_app():
         except Exception as e:
             return jsonify(status="error", db=str(e)), 503
 
+    @app.get("/api/extension/download")
+    def download_extension():
+        """Serve the Chrome extension zip for beta users."""
+        ext_zip = pathlib.Path(app.root_path).parent / "orbit-extension.zip"
+        if not ext_zip.exists():
+            return jsonify(error="Extension not available"), 404
+        return send_from_directory(
+            ext_zip.parent,
+            ext_zip.name,
+            as_attachment=True,
+            download_name="orbitsix-extension.zip",
+        )
+
     # Serve built React frontend in production
     frontend_dist = pathlib.Path(app.root_path).parent / "frontend" / "dist"
     if frontend_dist.exists():
