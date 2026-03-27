@@ -338,15 +338,6 @@ function StepTargets({ onDone }) {
       <button type="submit" className="btn-primary" style={primaryBtn()} disabled={saving}>
         {saving ? 'Saving…' : 'Set up my agent →'}
       </button>
-      <button
-        type="button"
-        className="btn-ghost"
-        style={ghostBtn({ marginTop: '8px' })}
-        onClick={() => onDone(0, [])}
-        disabled={saving}
-      >
-        Skip — I'll fill this in later
-      </button>
     </form>
   )
 }
@@ -424,10 +415,11 @@ function StepReady({ targetCount, imported, targets, onGo, onImport }) {
 // ── Main wizard ───────────────────────────────────────────────────────────
 export default function Onboarding() {
   const navigate = useNavigate()
-  const [step, setStep]             = useState(1)
-  const [imported, setImported]     = useState(0)
-  const [targetCount, setTargetCount] = useState(0)
+  const [step, setStep]                 = useState(1)
+  const [imported, setImported]         = useState(0)
+  const [targetCount, setTargetCount]   = useState(0)
   const [savedTargets, setSavedTargets] = useState([])
+  const [step2Done, setStep2Done]       = useState(false)  // true once targets saved
 
   function completeOnboarding(firstTarget) {
     localStorage.setItem('onboarding_complete', '1')
@@ -437,17 +429,23 @@ export default function Onboarding() {
     navigate('/agent', { replace: true, state: prompt ? { prompt } : undefined })
   }
 
+  // When returning from step 3 → step 1, skip straight back to 3 after import
+  function afterStep1(count) {
+    setImported(count)
+    setStep(step2Done ? 3 : 2)
+  }
+
   return (
     <AuthShell step={step} totalSteps={3}>
       {step === 1 && (
         <StepImport
-          onDone={(count) => { setImported(count); setStep(2) }}
-          onSkip={() => setStep(2)}
+          onDone={(count) => afterStep1(count)}
+          onSkip={() => step2Done ? setStep(3) : setStep(2)}
         />
       )}
       {step === 2 && (
         <StepTargets
-          onDone={(count, targets) => { setTargetCount(count); setSavedTargets(targets); setStep(3) }}
+          onDone={(count, targets) => { setTargetCount(count); setSavedTargets(targets); setStep2Done(true); setStep(3) }}
         />
       )}
       {step === 3 && (
