@@ -221,9 +221,10 @@ function StepTargets({ onDone }) {
     setError(null)
     try {
       // Save profile fields (title + company) onto the self-person record
+      const me = await api.me().catch(() => null)
       await api.updateProfile({
-        first_name:   localStorage.getItem('user_first_name') || '',
-        last_name:    localStorage.getItem('user_last_name')  || '',
+        first_name:   localStorage.getItem('user_first_name') || me?.first_name || 'User',
+        last_name:    localStorage.getItem('user_last_name')  || me?.last_name  || '',
         title:        profile.title.trim(),
         company:      profile.company.trim(),
       })
