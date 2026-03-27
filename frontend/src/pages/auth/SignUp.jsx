@@ -48,11 +48,12 @@ export default function SignUp() {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenant_name: `${form.first_name} ${form.last_name}`.trim() + "'s Workspace",
-          email:      form.email,
-          password:   form.password,
-          first_name: form.first_name,
-          last_name:  form.last_name,
+          tenant_name:     `${form.first_name} ${form.last_name}`.trim() + "'s Workspace",
+          email:           form.email,
+          password:        form.password,
+          first_name:      form.first_name,
+          last_name:       form.last_name,
+          agreed_to_terms: agreedToTerms,
         }),
       })
       const data = await res.json()

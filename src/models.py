@@ -30,13 +30,16 @@ class User(db.Model):
         db.Index("ix_users_email",     "email"),
     )
 
-    id             = db.Column(db.Integer,      primary_key=True)
-    tenant_id      = db.Column(db.Integer,      db.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    email          = db.Column(db.String(255),  nullable=False, unique=True)
-    password_hash  = db.Column(db.String(255),  nullable=False)
-    role           = db.Column(db.String(50),   nullable=False, default="owner")
-    email_verified = db.Column(db.Boolean,      nullable=False, default=False, server_default="0")
-    created_at     = db.Column(db.DateTime,     default=lambda: datetime.now(timezone.utc))
+    id                  = db.Column(db.Integer,      primary_key=True)
+    tenant_id           = db.Column(db.Integer,      db.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    email               = db.Column(db.String(255),  nullable=False, unique=True)
+    password_hash       = db.Column(db.String(255),  nullable=False)
+    role                = db.Column(db.String(50),   nullable=False, default="owner")
+    email_verified      = db.Column(db.Boolean,      nullable=False, default=False, server_default="0")
+    agreed_to_terms_at  = db.Column(db.DateTime,     nullable=True)   # timestamp when user accepted ToS
+    terms_version       = db.Column(db.String(20),   nullable=True)   # e.g. "2026-03-26"
+    signup_ip           = db.Column(db.String(45),   nullable=True)   # IPv4 or IPv6 at signup
+    created_at          = db.Column(db.DateTime,     default=lambda: datetime.now(timezone.utc))
 
     tenant  = db.relationship("Tenant", back_populates="users")
     persons = db.relationship("Person", back_populates="user", lazy=True, cascade="all, delete-orphan", passive_deletes=True)

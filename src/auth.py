@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, jwt_required
@@ -31,6 +31,9 @@ def signup():
     if not tenant_name or not email or not password:
         return jsonify(error="tenant_name, email, and password are required"), 400
 
+    if not data.get("agreed_to_terms"):
+        return jsonify(error="You must agree to the Terms of Service and Privacy Policy"), 400
+
     pw_error = _validate_password(password)
     if pw_error:
         return jsonify(error=pw_error), 400
@@ -42,11 +45,16 @@ def signup():
     db.session.add(tenant)
     db.session.flush()  # get tenant.id before commit
 
+    # Record consent with timestamp, ToS version, and signup IP for legal proof
+    signup_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
     user = User(
         tenant_id=tenant.id,
         email=email,
         password_hash=generate_password_hash(password),
         role="owner",
+        agreed_to_terms_at=datetime.now(timezone.utc),
+        terms_version="2026-03-26",
+        signup_ip=signup_ip or None,
     )
     db.session.add(user)
     db.session.flush()  # get user.id before commit
