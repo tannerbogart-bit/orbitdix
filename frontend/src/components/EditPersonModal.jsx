@@ -88,7 +88,7 @@ export default function EditPersonModal({ person, onSave, onDelete, onClose }) {
           {field('LinkedIn URL', 'linkedin_url', 'https://linkedin.com/in/...')}
 
           {error && (
-            <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: 'var(--danger)' }}>
+            <div style={{ padding: '10px 14px', background: 'var(--danger-dim)', border: '1px solid var(--danger)', borderRadius: '8px', fontSize: '13px', color: 'var(--danger)' }}>
               {error}
             </div>
           )}

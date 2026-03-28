@@ -3,8 +3,8 @@ import { api } from '../api/client'
 
 const TYPE_META = {
   path_found:        { emoji: '🔗', label: 'Path found',       color: 'var(--accent)',  bg: 'var(--accent-dim)',           filter: 'Paths'       },
-  message_drafted:   { emoji: '✉️', label: 'Message drafted',  color: 'var(--success)', bg: 'rgba(52,211,153,0.1)',        filter: 'Messages'    },
-  connection_added:  { emoji: '⚡', label: 'Connection added', color: 'var(--warning)', bg: 'rgba(251,191,36,0.1)',        filter: 'Connections' },
+  message_drafted:   { emoji: '✉️', label: 'Message drafted',  color: 'var(--success)', bg: 'var(--success-dim)',        filter: 'Messages'    },
+  connection_added:  { emoji: '⚡', label: 'Connection added', color: 'var(--warning)', bg: 'var(--warning-dim)',        filter: 'Connections' },
   person_imported:   { emoji: '📥', label: 'Import',           color: 'var(--accent)',  bg: 'var(--accent-dim)',           filter: 'Imports'     },
 }
 

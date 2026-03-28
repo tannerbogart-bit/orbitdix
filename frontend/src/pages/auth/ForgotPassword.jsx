@@ -75,7 +75,7 @@ export default function ForgotPassword() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {error && (
           <div style={{
-            padding: '10px 14px', background: 'rgba(248,113,113,0.08)',
+            padding: '10px 14px', background: 'var(--danger-dim)',
             border: '1px solid var(--danger)', borderRadius: '8px',
             color: 'var(--danger)', fontSize: '13px',
           }}>

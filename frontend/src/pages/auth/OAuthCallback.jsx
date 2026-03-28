@@ -51,7 +51,7 @@ export default function OAuthCallback() {
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              background: 'rgba(248, 113, 113, 0.1)',
+              background: 'var(--danger-dim)',
               border: '2px solid var(--danger)',
               display: 'flex',
               alignItems: 'center',

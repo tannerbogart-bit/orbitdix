@@ -500,7 +500,7 @@ export default function Pricing() {
       {error && (
         <div style={{
           maxWidth: '480px', margin: '-48px auto 48px',
-          background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)',
+          background: 'var(--danger-dim)', border: '1px solid rgba(248,113,113,0.3)',
           borderRadius: '10px', padding: '14px 18px',
           fontSize: '13px', color: '#f87171', textAlign: 'center',
         }}>

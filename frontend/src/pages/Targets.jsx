@@ -5,9 +5,9 @@ import { useToast } from '../components/Toast'
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 const STATUS = {
-  connected:  { label: 'Connected',  color: 'var(--success)',  bg: 'rgba(52,211,153,0.1)' },
-  bridgeable: { label: 'Bridgeable', color: 'var(--warning)',  bg: 'rgba(251,191,36,0.1)' },
-  gap:        { label: 'No warm path', color: 'var(--danger)', bg: 'rgba(248,113,113,0.08)' },
+  connected:  { label: 'Connected',  color: 'var(--success)',  bg: 'var(--success-dim)' },
+  bridgeable: { label: 'Bridgeable', color: 'var(--warning)',  bg: 'var(--warning-dim)' },
+  gap:        { label: 'No warm path', color: 'var(--danger)', bg: 'var(--danger-dim)' },
   loading:    { label: '…',           color: 'var(--text-muted)', bg: 'var(--bg-input)' },
 }
 
@@ -90,7 +90,7 @@ function AddTargetForm({ onAdded }) {
             Add target company
           </div>
           {error && (
-            <div style={{ fontSize: '13px', color: 'var(--danger)', padding: '8px 12px', background: 'rgba(248,113,113,0.08)', borderRadius: '8px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--danger)', padding: '8px 12px', background: 'var(--danger-dim)', borderRadius: '8px' }}>
               {error}
             </div>
           )}
@@ -198,7 +198,7 @@ function BulkImportModal({ onImported, onClose }) {
         </p>
 
         {error && (
-          <div style={{ fontSize: '13px', color: 'var(--danger)', padding: '8px 12px', background: 'rgba(248,113,113,0.08)', borderRadius: '8px', marginBottom: '12px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--danger)', padding: '8px 12px', background: 'var(--danger-dim)', borderRadius: '8px', marginBottom: '12px' }}>
             {error}
           </div>
         )}

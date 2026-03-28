@@ -12,8 +12,8 @@ const STATUS_TABS = [
 const STATUS_META = {
   drafted:  { label: 'Drafted',  color: 'var(--text-muted)',    bg: 'var(--bg-input)' },
   sent:     { label: 'Sent',     color: 'var(--accent)',        bg: 'var(--accent-dim)' },
-  replied:  { label: 'Replied',  color: 'var(--success)',       bg: 'rgba(52,211,153,0.1)' },
-  no_reply: { label: 'No reply', color: 'var(--warning)',       bg: 'rgba(251,191,36,0.1)' },
+  replied:  { label: 'Replied',  color: 'var(--success)',       bg: 'var(--success-dim)' },
+  no_reply: { label: 'No reply', color: 'var(--warning)',       bg: 'var(--warning-dim)' },
 }
 
 function StatusBadge({ status }) {

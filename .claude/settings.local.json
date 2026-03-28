@@ -5,7 +5,13 @@
       "Bash(curl -s http://localhost:5000/health)",
       "Bash(curl -s http://localhost:5173)",
       "Bash(python -m flask --app src.app:create_app db migrate -m \"add relationship_note to edges\")",
-      "Bash(python -m flask --app src.app:create_app db upgrade)"
+      "Bash(python -m flask --app src.app:create_app db upgrade)",
+      "Bash(echo \"gunicorn>=21.0\")",
+      "Bash(node node_modules/vite/bin/vite.js build)",
+      "Bash(xargs grep:*)",
+      "Bash(git commit:*)",
+      "Bash(xargs wc:*)",
+      "Bash(python -c \":*)"
     ]
   }
 }

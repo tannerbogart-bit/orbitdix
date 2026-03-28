@@ -96,7 +96,7 @@ export default function VerifyEmail() {
       </p>
       {error && (
         <div style={{
-          padding: '10px 14px', background: 'rgba(248,113,113,0.08)',
+          padding: '10px 14px', background: 'var(--danger-dim)',
           border: '1px solid var(--danger)', borderRadius: '8px',
           fontSize: '13px', color: 'var(--danger)', marginBottom: '16px',
         }}>

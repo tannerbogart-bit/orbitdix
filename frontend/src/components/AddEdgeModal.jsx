@@ -232,7 +232,7 @@ export default function AddEdgeModal({ people, onAdd, onClose, preselect }) {
         </div>
 
         {error && (
-          <div style={{ fontSize: '13px', color: '#f87171', padding: '8px 12px', background: 'rgba(248,113,113,0.1)', borderRadius: '6px', border: '1px solid rgba(248,113,113,0.2)' }}>
+          <div style={{ fontSize: '13px', color: '#f87171', padding: '8px 12px', background: 'var(--danger-dim)', borderRadius: '6px', border: '1px solid rgba(248,113,113,0.2)' }}>
             {error}
           </div>
         )}

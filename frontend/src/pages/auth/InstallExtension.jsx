@@ -86,7 +86,7 @@ export default function InstallExtension() {
                 width: '20px',
                 height: '20px',
                 borderRadius: '50%',
-                background: 'rgba(52, 211, 153, 0.1)',
+                background: 'var(--success-dim)',
                 border: '1px solid var(--success)',
                 display: 'flex',
                 alignItems: 'center',

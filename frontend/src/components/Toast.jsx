@@ -43,7 +43,7 @@ export function ToastProvider({ children }) {
 function ToastItem({ toast, onRemove }) {
   const colors = {
     success: { border: 'var(--success)', icon: '✓', bg: 'rgba(52,211,153,0.08)' },
-    error:   { border: 'var(--danger)',  icon: '✕', bg: 'rgba(248,113,113,0.08)' },
+    error:   { border: 'var(--danger)',  icon: '✕', bg: 'var(--danger-dim)' },
     info:    { border: 'var(--accent)',  icon: 'ℹ', bg: 'var(--accent-dim)'      },
   }
   const c = colors[toast.type] || colors.info

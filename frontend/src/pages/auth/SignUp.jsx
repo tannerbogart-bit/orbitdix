@@ -95,7 +95,7 @@ export default function SignUp() {
           <div
             style={{
               padding:      '10px 14px',
-              background:   'rgba(248,113,113,0.08)',
+              background:   'var(--danger-dim)',
               border:       '1px solid var(--danger)',
               borderRadius: '8px',
               color:        'var(--danger)',

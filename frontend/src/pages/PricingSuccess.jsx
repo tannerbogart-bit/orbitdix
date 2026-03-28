@@ -18,7 +18,7 @@ export default function PricingSuccess() {
       {/* Animated checkmark */}
       <div style={{
         width: '80px', height: '80px', borderRadius: '50%',
-        background: 'rgba(52,211,153,0.1)', border: '2px solid var(--success)',
+        background: 'var(--success-dim)', border: '2px solid var(--success)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         marginBottom: '24px',
         boxShadow: '0 0 40px rgba(52,211,153,0.2)',

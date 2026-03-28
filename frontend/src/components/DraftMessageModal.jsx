@@ -211,7 +211,7 @@ export default function DraftMessageModal({ path, target, edges = [], onClose, o
         {aiError && (
           <div style={{
             fontSize: '12px', color: 'var(--danger)',
-            background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)',
+            background: 'var(--danger-dim)', border: '1px solid var(--danger)',
             borderRadius: '6px', padding: '8px 10px', marginBottom: '8px',
           }}>
             {aiError}
@@ -257,7 +257,7 @@ export default function DraftMessageModal({ path, target, edges = [], onClose, o
               justifyContent: 'center',
               gap: '8px',
               padding: '12px',
-              background: 'rgba(52, 211, 153, 0.1)',
+              background: 'var(--success-dim)',
               border: '1px solid var(--success)',
               borderRadius: '8px',
               color: 'var(--success)',

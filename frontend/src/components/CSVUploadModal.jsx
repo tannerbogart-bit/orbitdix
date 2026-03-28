@@ -248,7 +248,7 @@ export default function CSVUploadModal({ onImport, onClose }) {
             )}
 
             {error && (
-              <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid var(--danger)', borderRadius: '8px', marginBottom: '14px', fontSize: '13px', color: 'var(--danger)' }}>
+              <div style={{ padding: '10px 14px', background: 'var(--danger-dim)', border: '1px solid var(--danger)', borderRadius: '8px', marginBottom: '14px', fontSize: '13px', color: 'var(--danger)' }}>
                 {error}
               </div>
             )}
@@ -283,7 +283,7 @@ export default function CSVUploadModal({ onImport, onClose }) {
         ) : (
           /* Success state */
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(52,211,153,0.1)', border: '2px solid var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--success-dim)', border: '2px solid var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M5 12l5 5L19 7" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>

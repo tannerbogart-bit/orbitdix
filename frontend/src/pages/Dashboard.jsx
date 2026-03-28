@@ -214,14 +214,14 @@ export default function Dashboard() {
 
             {/* Summary pills */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'rgba(52,211,153,0.1)', color: 'var(--success)', fontWeight: 600 }}>
+              <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--success-dim)', color: 'var(--success)', fontWeight: 600 }}>
                 {summary.connected} connected
               </span>
-              <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'rgba(251,191,36,0.1)', color: 'var(--warning)', fontWeight: 600 }}>
+              <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--warning-dim)', color: 'var(--warning)', fontWeight: 600 }}>
                 {summary.bridgeable} bridgeable
               </span>
               {summary.gap > 0 && (
-                <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'rgba(248,113,113,0.08)', color: 'var(--danger)', fontWeight: 600 }}>
+                <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '99px', background: 'var(--danger-dim)', color: 'var(--danger)', fontWeight: 600 }}>
                   {summary.gap} no warm path
                 </span>
               )}
