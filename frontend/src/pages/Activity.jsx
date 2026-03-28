@@ -62,34 +62,44 @@ export default function Activity() {
 
   if (loading) {
     return (
-      <div style={{ padding: '32px' }}>
-        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>Activity</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Loading…</p>
+      <div className="page-pad" style={{ maxWidth: '680px' }}>
+        <div className="skeleton skeleton-title" style={{ width: '120px', marginBottom: '8px' }} />
+        <div className="skeleton skeleton-text" style={{ width: '220px', marginBottom: '28px' }} />
+        <div className="card" style={{ overflow: 'hidden' }}>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', borderBottom: i < 4 ? '1px solid var(--border-subtle)' : 'none' }}>
+              <div className="skeleton" style={{ width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div className="skeleton skeleton-text" style={{ width: '50%' }} />
+                <div className="skeleton skeleton-text" style={{ width: '30%', marginBottom: 0 }} />
+              </div>
+              <div className="skeleton skeleton-text" style={{ width: '48px', marginBottom: 0 }} />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
 
   if (activities.length === 0) {
     return (
-      <div style={{ padding: '32px', maxWidth: '600px' }}>
+      <div className="page-pad" style={{ maxWidth: '600px' }}>
         <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>Activity</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 48px' }}>Your networking activity will appear here.</p>
-        <div style={{ textAlign: 'center', padding: '60px 40px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
-          <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '20px', fontWeight: 700, margin: '0 0 8px' }}>No activity yet</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-            Start finding paths and sending messages to see activity here.
-          </p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 32px' }}>Your networking activity will appear here.</p>
+        <div className="empty-state card">
+          <div className="empty-state-icon">📭</div>
+          <h3>No activity yet</h3>
+          <p>Find paths, draft messages, and add connections — it'll all show up here.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '680px' }}>
+    <div className="page-pad" style={{ maxWidth: '680px' }}>
       <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>Activity</h1>
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 24px' }}>
-        Your recent networking activity
+        Your recent networking activity.
       </p>
 
       {/* Filter pills */}
@@ -112,8 +122,10 @@ export default function Activity() {
       </div>
 
       {grouped.length === 0 ? (
-        <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-          No {filter.toLowerCase()} activity yet.
+        <div className="empty-state card">
+          <div className="empty-state-icon">🔍</div>
+          <h3>No {filter.toLowerCase()} activity</h3>
+          <p>Nothing here yet for this filter.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

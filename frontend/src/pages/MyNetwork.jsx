@@ -428,8 +428,16 @@ export default function MyNetwork() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {loading ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-                Loading your network…
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div className="skeleton skeleton-avatar" />
+                    <div style={{ flex: 1 }}>
+                      <div className="skeleton skeleton-text" style={{ width: '40%' }} />
+                      <div className="skeleton skeleton-text" style={{ width: '60%', marginBottom: 0 }} />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : filtered.length === 0 && (query || companyFilter) ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>

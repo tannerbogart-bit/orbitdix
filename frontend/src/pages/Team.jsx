@@ -1,73 +1,50 @@
-import { useState } from 'react'
-import { useToast } from '../components/Toast'
-
 export default function Team() {
-  const toast = useToast()
-  const [email, setEmail] = useState('')
-
-  function handleInvite(e) {
-    e.preventDefault()
-    if (!email.trim()) return
-    // Placeholder — team invites not yet implemented
-    toast?.add('Team invites coming soon! We\'ll notify you when it\'s ready.', 'info')
-    setEmail('')
-  }
-
   return (
     <div className="page-pad" style={{ maxWidth: '600px' }}>
       <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>
         Team
       </h1>
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 32px' }}>
-        Collaborate on networking with your team.
+        Collaborate on warm introductions with your whole team.
       </p>
 
-      <div
-        className="card"
-        style={{
-          padding: '40px',
-          background: 'linear-gradient(135deg, rgba(124,110,224,0.06) 0%, rgba(96,165,250,0.03) 100%)',
-          marginBottom: '24px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <div style={{
-            width: '40px', height: '40px', borderRadius: '10px',
-            background: 'var(--accent-dim)', border: '1px solid var(--accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
-          }}>👥</div>
-          <div>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '16px' }}>Team features coming soon</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Join the waitlist to get early access</div>
-          </div>
+      {/* Coming soon card */}
+      <div className="card" style={{ padding: '40px', background: 'var(--gradient-card-subtle)', marginBottom: '24px', textAlign: 'center' }}>
+        <div style={{
+          width: '52px', height: '52px', borderRadius: '14px',
+          background: 'var(--accent-dim)', border: '1px solid var(--accent)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 20px', fontSize: '22px',
+        }}>
+          👥
         </div>
-
-        <form onSubmit={handleInvite} style={{ display: 'flex', gap: '8px' }}>
-          <input
-            className="input"
-            type="email"
-            placeholder="teammate@company.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={{ flex: 1 }}
-          />
-          <button className="btn-primary" type="submit" style={{ fontSize: '13px', padding: '9px 16px', flexShrink: 0 }}>
-            Notify me
-          </button>
-        </form>
+        <h2 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '20px', margin: '0 0 10px', color: 'var(--text-primary)' }}>
+          Coming soon
+        </h2>
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 24px', maxWidth: '360px', marginInline: 'auto' }}>
+          Team collaboration is in development. You'll be able to share paths, coordinate outreach, and build a shared network — across your entire team.
+        </p>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 16px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: '99px', fontSize: '13px', color: 'var(--accent)', fontWeight: 600 }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 1.5s infinite' }} />
+          In development — Max plan
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+      {/* Feature preview */}
+      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '12px', fontFamily: 'DM Sans, sans-serif' }}>
+        What's coming
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
         {[
-          { emoji: '🔗', title: 'Shared paths',    desc: 'Everyone sees every path your team finds' },
-          { emoji: '📊', title: 'Team analytics',  desc: 'Track outreach effectiveness across the team' },
-          { emoji: '🎯', title: 'Assign targets',  desc: 'Coordinate who reaches out to whom' },
-          { emoji: '💬', title: 'Shared messages', desc: 'Build a library of proven intro templates' },
+          { emoji: '🔗', title: 'Shared paths',    desc: 'Everyone sees every path your team uncovers' },
+          { emoji: '📊', title: 'Team analytics',  desc: 'Track outreach performance across the team' },
+          { emoji: '🎯', title: 'Assign targets',  desc: 'Coordinate who reaches out to each account' },
+          { emoji: '💬', title: 'Message library', desc: 'Build a shared library of proven intro templates' },
         ].map(f => (
-          <div key={f.title} className="card" style={{ padding: '16px', opacity: 0.6 }}>
-            <div style={{ fontSize: '20px', marginBottom: '8px' }}>{f.emoji}</div>
-            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{f.title}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{f.desc}</div>
+          <div key={f.title} className="card" style={{ padding: '16px', opacity: 0.5, cursor: 'default' }}>
+            <div style={{ fontSize: '18px', marginBottom: '8px' }}>{f.emoji}</div>
+            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px', color: 'var(--text-primary)' }}>{f.title}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{f.desc}</div>
           </div>
         ))}
       </div>

@@ -97,22 +97,25 @@ export default function SavedPaths() {
 
   if (loading) {
     return (
-      <div style={{ padding: '32px' }}>
-        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>Saved Paths</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Loading…</p>
+      <div className="page-pad" style={{ maxWidth: '680px' }}>
+        <div className="skeleton skeleton-title" style={{ width: '160px', marginBottom: '8px' }} />
+        <div className="skeleton skeleton-text" style={{ width: '240px', marginBottom: '28px' }} />
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="skeleton skeleton-card" style={{ marginBottom: '12px' }} />
+        ))}
       </div>
     )
   }
 
   if (paths.length === 0) {
     return (
-      <div style={{ padding: '32px', maxWidth: '600px' }}>
+      <div className="page-pad" style={{ maxWidth: '600px' }}>
         <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>Saved Paths</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 40px' }}>Save paths to revisit them later.</p>
-        <div className="card" style={{ padding: '60px 40px', textAlign: 'center', background: 'linear-gradient(135deg, rgba(124,110,224,0.05) 0%, transparent 100%)', borderStyle: 'dashed' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔗</div>
-          <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '20px', fontWeight: 700, margin: '0 0 8px' }}>No saved paths yet</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 24px' }}>Find a path and save it to see it here.</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 32px' }}>Save paths to revisit them later.</p>
+        <div className="empty-state card">
+          <div className="empty-state-icon">🔗</div>
+          <h3>No saved paths yet</h3>
+          <p>Find a warm intro path and save it — it'll show up here for quick reference.</p>
           <button className="btn-primary" onClick={() => navigate('/find-path')}>Find a path</button>
         </div>
       </div>

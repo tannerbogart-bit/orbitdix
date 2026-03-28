@@ -5,7 +5,16 @@ import { api } from '../api/client'
 // Lightweight markdown renderer — handles patterns Claude commonly outputs
 function MarkdownMessage({ content, streaming }) {
   if (!content) {
-    return streaming ? <span style={{ opacity: 0.5 }}>Thinking…</span> : null
+    return streaming ? (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '13px' }}>
+        <span style={{ display: 'inline-flex', gap: '3px' }}>
+          {[0, 1, 2].map(i => (
+            <span key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+          ))}
+        </span>
+        Thinking…
+      </span>
+    ) : null
   }
 
   const lines = content.split('\n')
@@ -716,7 +725,7 @@ export default function Agent() {
           {/* Outreach saved confirmation */}
           {outreachSaved && (
             <div style={{ maxWidth: '720px', margin: '0 auto 8px', paddingLeft: '38px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 14px', background: 'rgba(52,211,153,0.08)', border: '1px solid var(--success)', borderRadius: '8px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', color: 'var(--success)' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 14px', background: 'var(--success-dim)', border: '1px solid var(--success)', borderRadius: '8px', fontSize: '13px', fontFamily: 'DM Sans, sans-serif', color: 'var(--success)' }}>
                 ✓ Draft saved to Outreach Tracker
                 <a href="/outreach" style={{ color: 'var(--success)', fontWeight: 600, textDecoration: 'underline', marginLeft: '4px' }}>View →</a>
                 <button onClick={() => setOutreachSaved(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', opacity: 0.6, padding: '0 2px', lineHeight: 1, fontSize: '14px' }}>×</button>
