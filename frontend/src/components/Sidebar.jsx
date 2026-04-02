@@ -131,6 +131,7 @@ export default function Sidebar() {
     return { firstName, lastName, email }
   })
   const [isMax, setIsMax] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     api.me().then(data => {
@@ -150,6 +151,9 @@ export default function Sidebar() {
     }).catch(() => {})
 
     api.getStats().then(d => setIsMax(!!d.is_max)).catch(() => {})
+
+    // Detect admin status — silently check; 403 means not admin
+    api.adminStats().then(() => setIsAdmin(true)).catch(() => {})
   }, [])
 
   const initials = ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase() || '?'
@@ -267,6 +271,38 @@ export default function Sidebar() {
           )
         })}
       </nav>
+
+      {/* Admin link — only visible if ADMIN_EMAILS matches */}
+      {isAdmin && (
+        <NavLink
+          to="/admin"
+          style={({ isActive }) => ({
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '9px 10px',
+            borderRadius: '8px',
+            marginBottom: '2px',
+            marginTop: '8px',
+            color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+            background: isActive ? 'var(--accent-dim)' : 'transparent',
+            fontFamily: 'DM Sans, sans-serif',
+            fontWeight: isActive ? 600 : 400,
+            fontSize: '13px',
+            textDecoration: 'none',
+            borderTop: '1px solid var(--border-subtle)',
+            paddingTop: '12px',
+            marginTop: '6px',
+          })}
+        >
+          <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+            <rect x="1" y="1" width="16" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+            <rect x="1" y="8" width="7" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+            <rect x="10" y="8" width="7" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+          <span className="nav-label">Admin</span>
+        </NavLink>
+      )}
 
       {/* Feedback link */}
       <div style={{ padding: '6px 14px 2px', textAlign: 'center' }}>

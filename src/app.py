@@ -93,6 +93,7 @@ def create_app():
 
     from .models import Person, Edge, Tenant, User, SavedPath, Activity, AgentContext, TargetAccount, Outreach  # noqa: F401 — registers models with SQLAlchemy
 
+    from .admin import bp as admin_bp
     from .agent import bp as agent_bp
     from .ai import bp as ai_bp
     from .auth import bp as auth_bp
@@ -104,6 +105,7 @@ def create_app():
     from .people import bp as people_bp
     from .saved_paths import bp as saved_paths_bp
 
+    app.register_blueprint(admin_bp)
     app.register_blueprint(agent_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(auth_bp)

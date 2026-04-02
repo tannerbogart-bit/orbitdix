@@ -36,6 +36,7 @@ import Team        from './pages/Team'
 import Activity    from './pages/Activity'
 import Targets     from './pages/Targets'
 import Outreach    from './pages/Outreach'
+import Admin      from './pages/Admin'
 
 export default function App() {
   return (
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/outreach"  element={<Outreach />}   />
           <Route path="/team"      element={<Team />}       />
           <Route path="/activity"  element={<Activity />}   />
+          <Route path="/admin"     element={<Admin />}      />
         </Route>
         </Route>
 
