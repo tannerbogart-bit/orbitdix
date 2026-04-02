@@ -129,7 +129,8 @@ def create_app():
             db.session.execute(sa.text("SELECT 1"))
             return jsonify(status="ok", db="ok")
         except Exception as e:
-            return jsonify(status="error", db=str(e)), 503
+            logging.getLogger(__name__).error("Health check DB error: %s", e)
+            return jsonify(status="error", db="unavailable"), 503
 
     @app.get("/api/extension/download")
     def download_extension():
@@ -150,9 +151,11 @@ def create_app():
         @app.route("/", defaults={"path": ""})
         @app.route("/<path:path>")
         def serve_frontend(path):
-            file_path = frontend_dist / path
-            if path and file_path.exists():
-                return send_from_directory(frontend_dist, path)
+            if path:
+                # Resolve and confirm the file stays within frontend_dist
+                resolved = (frontend_dist / path).resolve()
+                if resolved.is_relative_to(frontend_dist.resolve()) and resolved.exists():
+                    return send_from_directory(frontend_dist, path)
             return send_from_directory(frontend_dist, "index.html")
 
     return app

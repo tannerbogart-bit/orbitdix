@@ -757,7 +757,8 @@ def execute_tool(name: str, tool_input: dict, user_id: int, tenant_id: int) -> s
         else:
             result = {"error": f"Unknown tool: {name}"}
     except Exception as e:
-        result = {"error": str(e)}
+        logger.error("Tool %s failed for user %s: %s", name, user_id, e)
+        result = {"error": "Tool execution failed. Please try again."}
     return json.dumps(result)
 
 
@@ -1482,7 +1483,8 @@ def agent_chat():
                 messages_hist.append({"role": "user", "content": tool_results})
 
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                logger.error("Agent stream error for user %s: %s", user_id, e)
+                yield f"data: {json.dumps({'type': 'error', 'message': 'An error occurred. Please try again.'})}\n\n"
                 return
 
         # Persist exchange to conversation memory

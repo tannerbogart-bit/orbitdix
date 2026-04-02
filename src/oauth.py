@@ -189,8 +189,12 @@ def oauth_callback(provider):
 
     # ── Provider-level errors (user denied access, etc.) ─────────────────────
     if request.args.get("error"):
-        desc = request.args.get("error_description", "")
-        return jsonify(error=f"OAuth error: {request.args['error']} — {desc}"), 400
+        # Allowlist known OAuth error codes; drop free-text description to avoid reflection
+        _SAFE_OAUTH_ERRORS = {"access_denied", "temporarily_unavailable", "server_error", "invalid_request"}
+        error_code = request.args.get("error", "unknown")
+        if error_code not in _SAFE_OAUTH_ERRORS:
+            error_code = "oauth_error"
+        return jsonify(error=f"OAuth error: {error_code}"), 400
 
     # ── Code → token exchange ────────────────────────────────────────────────
     client = OAuth2Session(

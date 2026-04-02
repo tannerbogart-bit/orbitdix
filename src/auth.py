@@ -16,6 +16,8 @@ def _validate_password(password: str) -> str | None:
     """Return an error string if password fails policy, else None."""
     if len(password) < 8:
         return "Password must be at least 8 characters"
+    if not any(c.isalpha() for c in password):
+        return "Password must contain at least one letter"
     if not any(c.isdigit() for c in password) and not any(not c.isalnum() for c in password):
         return "Password must contain at least one number or special character"
     return None

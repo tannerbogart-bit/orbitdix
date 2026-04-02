@@ -4,7 +4,10 @@ src/ai.py — AI-powered message drafting via Claude API.
 POST /api/draft-message   — generate an intro message (requires auth)
 """
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -80,4 +83,5 @@ def draft_message():
         )
         return jsonify(message=result.content[0].text)
     except Exception as e:
-        return jsonify(error=str(e)), 502
+        logger.error("draft_message failed for user %s: %s", user_id, e)
+        return jsonify(error="Failed to generate message. Please try again."), 502
