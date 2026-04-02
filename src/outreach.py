@@ -96,7 +96,13 @@ def update_outreach(outreach_id):
 
     if "follow_up_at" in data:
         raw = data["follow_up_at"]
-        record.follow_up_at = datetime.fromisoformat(raw) if raw else None
+        if raw:
+            try:
+                record.follow_up_at = datetime.fromisoformat(raw)
+            except (ValueError, TypeError):
+                return jsonify(error="Invalid follow_up_at format — expected ISO 8601"), 400
+        else:
+            record.follow_up_at = None
 
     db.session.commit()
     return jsonify(_serialize(record))

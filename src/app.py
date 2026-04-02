@@ -1,3 +1,4 @@
+import logging
 import os
 import sqlite3
 from datetime import timedelta
@@ -25,6 +26,11 @@ def _set_sqlite_pragma(conn, _record):
 
 def create_app():
     load_dotenv()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
 
     app = Flask(__name__)
 

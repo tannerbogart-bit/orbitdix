@@ -13,10 +13,13 @@ POST   /api/agent/chat            — streaming SSE chat with Claude + tools
 """
 
 import json
+import logging
 import os
 from collections import deque
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
+
+logger = logging.getLogger(__name__)
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import and_, func
 
@@ -342,8 +345,8 @@ def tool_find_path(target_name: str, user_id: int, tenant_id: int) -> dict:
                                 "status": o.status,
                                 "target": o.target_name,
                             }
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to load outreach history for context: %s", e)
 
                 path_nodes = []
                 for pid in full_ids:
@@ -830,8 +833,8 @@ def _build_system_prompt(user_id: int, tenant_id: int) -> str:
                 lines.append(f"- Network data last synced {days_ago} days ago — mention this could be stale when relevant")
         else:
             lines.append("- Network data has never been synced — mention to the user that importing their LinkedIn connections will unlock full functionality")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to build network context for system prompt: %s", e)
 
     # ── Outreach context ──────────────────────────────────────────────────────
     try:
@@ -877,8 +880,8 @@ def _build_system_prompt(user_id: int, tenant_id: int) -> str:
                 lines.append(f"- ⚠️ {len(overdue)} overdue follow-ups: {overdue_str}")
             if not any([drafted, sent, no_reply, replied]):
                 lines.append("- No outreach started yet — a great first ask after finding a path")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to build outreach context for system prompt: %s", e)
 
     lines += [
         "\n## Your responsibilities",
@@ -1356,8 +1359,8 @@ def _build_inline_suggestions(user_id: int, tenant_id: int, user_msg: str, respo
                     "prompt": "Based on my targets and ICP, who should I reach out to this week?",
                     "icon": "recommend",
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to build agent suggestions: %s", e)
 
     return suggestions[:3]
 
@@ -1485,8 +1488,14 @@ def agent_chat():
         # Persist exchange to conversation memory
         try:
             _save_messages(user_id, last_user_msg, full_response_text)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error("Failed to persist conversation history for user %s: %s", user_id, e)
+            # Retry once after rolling back the session
+            try:
+                db.session.rollback()
+                _save_messages(user_id, last_user_msg, full_response_text)
+            except Exception as e2:
+                logger.error("Retry also failed for conversation persist user %s: %s", user_id, e2)
 
         # Stream contextual follow-up suggestions based on this turn
         try:
@@ -1498,8 +1507,8 @@ def agent_chat():
             )
             if inline_suggestions:
                 yield f"data: {json.dumps({'type': 'suggestions', 'items': inline_suggestions})}\n\n"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to build inline suggestions: %s", e)
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 

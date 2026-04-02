@@ -6,11 +6,14 @@ POST /api/webhooks/stripe       — Stripe webhook (no auth, verified by signatu
 GET  /api/billing/plan          — return current plan for the logged-in tenant
 """
 
+import logging
 import os
 
 import stripe
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
+
+logger = logging.getLogger(__name__)
 
 from .db import db
 from .models import Tenant, User
@@ -86,39 +89,58 @@ def stripe_webhook():
     except stripe.errors.SignatureVerificationError:
         return jsonify(error="Invalid signature"), 400
 
-    if event["type"] == "checkout.session.completed":
-        session  = event["data"]["object"]
-        metadata = session.get("metadata", {})
-        tenant_id = metadata.get("tenant_id")
-        plan      = metadata.get("plan", "pro")
+    try:
+        if event["type"] == "checkout.session.completed":
+            session   = event["data"]["object"]
+            metadata  = session.get("metadata") or {}
+            tenant_id = metadata.get("tenant_id")
+            plan      = metadata.get("plan", "pro")
 
-        if tenant_id:
-            tenant = db.session.get(Tenant, int(tenant_id))
-            if tenant:
-                tenant.plan                   = plan
-                tenant.subscription_status    = "active"
-                tenant.stripe_customer_id     = session.get("customer")
-                tenant.stripe_subscription_id = session.get("subscription")
-                db.session.commit()
+            if not tenant_id:
+                logger.warning("Stripe checkout.session.completed missing tenant_id in metadata")
+            else:
+                try:
+                    tid = int(tenant_id)
+                except (ValueError, TypeError):
+                    logger.error("Stripe webhook: invalid tenant_id %r in metadata", tenant_id)
+                    return jsonify(received=True)  # ack so Stripe doesn't retry
 
-    elif event["type"] == "customer.subscription.deleted":
-        sub        = event["data"]["object"]
-        customer_id = sub.get("customer")
-        if customer_id:
-            tenant = Tenant.query.filter_by(stripe_customer_id=customer_id).first()
-            if tenant:
-                tenant.plan                = "free"
-                tenant.subscription_status = "canceled"
-                db.session.commit()
+                tenant = db.session.get(Tenant, tid)
+                if tenant:
+                    tenant.plan                   = plan
+                    tenant.subscription_status    = "active"
+                    tenant.stripe_customer_id     = session.get("customer")
+                    tenant.stripe_subscription_id = session.get("subscription")
+                    db.session.commit()
+                    logger.info("Tenant %s upgraded to plan=%s", tid, plan)
+                else:
+                    logger.error("Stripe webhook: tenant %s not found", tid)
 
-    elif event["type"] == "invoice.payment_failed":
-        sub        = event["data"]["object"]
-        customer_id = sub.get("customer")
-        if customer_id:
-            tenant = Tenant.query.filter_by(stripe_customer_id=customer_id).first()
-            if tenant:
-                tenant.subscription_status = "past_due"
-                db.session.commit()
+        elif event["type"] == "customer.subscription.deleted":
+            sub         = event["data"]["object"]
+            customer_id = sub.get("customer")
+            if customer_id:
+                tenant = Tenant.query.filter_by(stripe_customer_id=customer_id).first()
+                if tenant:
+                    tenant.plan                = "free"
+                    tenant.subscription_status = "canceled"
+                    db.session.commit()
+                    logger.info("Tenant %s subscription canceled", tenant.id)
+
+        elif event["type"] == "invoice.payment_failed":
+            sub         = event["data"]["object"]
+            customer_id = sub.get("customer")
+            if customer_id:
+                tenant = Tenant.query.filter_by(stripe_customer_id=customer_id).first()
+                if tenant:
+                    tenant.subscription_status = "past_due"
+                    db.session.commit()
+                    logger.info("Tenant %s payment failed — marked past_due", tenant.id)
+
+    except Exception as e:
+        logger.error("Stripe webhook processing error (event=%s): %s", event.get("type"), e)
+        # Still return 200 so Stripe doesn't retry — log for manual investigation
+        return jsonify(received=True, error="processing_error")
 
     return jsonify(received=True)
 
