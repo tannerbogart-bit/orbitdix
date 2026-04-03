@@ -49,14 +49,26 @@
   }
 
   // ── Scroll to load all connections ───────────────────────────────────────
-  // LinkedIn uses IntersectionObserver. scrollIntoView() on the last visible
-  // card triggers it properly, unlike window.scrollTo().
-  async function loadAll() {
+  // LinkedIn virtualizes its list — cards are removed from the DOM as you
+  // scroll past them. We must capture each card as it appears rather than
+  // collecting everything at the end.
+  async function loadAll(accumulator) {
     let previousCount = 0;
     let stableRounds  = 0;
 
     while (stableRounds < 4) {
-      // Scroll the last profile link into view to trigger LinkedIn's observer
+      // Capture any newly visible cards before scrolling away
+      for (const link of getProfileLinks()) {
+        const href = normalizeHref(link.getAttribute('href') || '');
+        if (!href || accumulator.seen.has(href)) continue;
+        accumulator.seen.add(href);
+        const conn = extractFromLink(link);
+        if (conn.first_name || conn.linkedin_url) {
+          accumulator.connections.push(conn);
+        }
+      }
+
+      // Scroll the last visible card into view to trigger LinkedIn's observer
       const links = getProfileLinks();
       if (links.length > 0) {
         links[links.length - 1].scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -66,7 +78,7 @@
 
       await new Promise(r => setTimeout(r, 2500));
 
-      const current = getUniqueProfileUrls().size;
+      const current = accumulator.seen.size;
       console.log(`[OrbitSix] Scroll — unique profiles: ${current}, stable rounds: ${stableRounds}`);
 
       if (current === previousCount) {
@@ -78,7 +90,19 @@
 
       if (current >= 3000) break;
     }
-    console.log(`[OrbitSix] Scroll done — total unique profiles: ${previousCount}`);
+
+    // Final pass — capture anything visible after the last scroll
+    for (const link of getProfileLinks()) {
+      const href = normalizeHref(link.getAttribute('href') || '');
+      if (!href || accumulator.seen.has(href)) continue;
+      accumulator.seen.add(href);
+      const conn = extractFromLink(link);
+      if (conn.first_name || conn.linkedin_url) {
+        accumulator.connections.push(conn);
+      }
+    }
+
+    console.log(`[OrbitSix] Scroll done — total unique profiles: ${accumulator.seen.size}`);
   }
 
   // ── Walk up DOM to find card container ───────────────────────────────────
@@ -191,22 +215,11 @@
   await waitForProfileLinks();
 
   chrome.runtime.sendMessage({ action: 'scrape_status', text: 'Scrolling to load all connections…' });
-  await loadAll();
 
-  // Deduplicate by profile URL, then extract
-  const seen = new Set();
-  const connections = [];
-
-  for (const link of getProfileLinks()) {
-    const href = normalizeHref(link.getAttribute('href') || '');
-    if (seen.has(href)) continue;
-    seen.add(href);
-
-    const conn = extractFromLink(link);
-    if (conn.first_name || conn.linkedin_url) {
-      connections.push(conn);
-    }
-  }
+  // Accumulator collects connections as they appear in the DOM during scroll
+  const accumulator = { seen: new Set(), connections: [] };
+  await loadAll(accumulator);
+  const connections = accumulator.connections;
 
   console.log(`[OrbitSix] Done — ${connections.length} connections extracted`);
 
