@@ -76,7 +76,7 @@ def save_path():
 
     # Plan enforcement
     tenant = db.session.get(Tenant, user.tenant_id)
-    if not is_pro(tenant):
+    if not is_pro(tenant, user):
         return upgrade_error("Saving paths is a Pro feature. Upgrade to save and revisit paths.")
 
     data = request.get_json(silent=True) or {}

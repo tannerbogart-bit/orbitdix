@@ -68,7 +68,7 @@ def create_person():
 
     # Contact cap for free plan
     tenant = db.session.get(Tenant, user.tenant_id)
-    if not is_pro(tenant):
+    if not is_pro(tenant, user):
         if contact_count(user.tenant_id) >= FREE_CONTACT_LIMIT:
             return upgrade_error(
                 f"You've reached the {FREE_CONTACT_LIMIT} contact limit on the Free plan. "
@@ -148,9 +148,9 @@ def get_stats():
     total  = Person.query.filter_by(tenant_id=user.tenant_id, is_self=False).count()
     tenant = db.session.get(Tenant, user.tenant_id)
     plan   = tenant.plan if tenant else "free"
-    pro    = is_pro(tenant)
+    pro    = is_pro(tenant, user)
     from .plans import FREE_AGENT_MSG_LIMIT, PRO_AGENT_MSG_LIMIT, is_max, monthly_agent_messages_used
-    max_plan      = is_max(tenant)
+    max_plan      = is_max(tenant, user)
     agent_used    = monthly_agent_messages_used(user_id)
     agent_limit   = None if max_plan else (PRO_AGENT_MSG_LIMIT if pro else FREE_AGENT_MSG_LIMIT)
     last_synced = tenant.last_synced_at.isoformat() if tenant and tenant.last_synced_at else None
@@ -208,7 +208,7 @@ def bulk_import_people():
 
     # Contact cap for free plan
     tenant = db.session.get(Tenant, tenant_id)
-    if not is_pro(tenant):
+    if not is_pro(tenant, user):
         current = contact_count(tenant_id)
         remaining = FREE_CONTACT_LIMIT - current
         if remaining <= 0:

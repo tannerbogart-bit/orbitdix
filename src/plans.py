@@ -18,9 +18,19 @@ Max ($49/mo):
   - Priority support
 """
 
+import os
 from datetime import datetime, timezone
 
 from .models import Activity, AgentMessage, Person, Tenant, User
+
+def _admin_emails() -> set:
+    raw = os.getenv("ADMIN_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+def is_admin_user(user: User | None) -> bool:
+    if user is None:
+        return False
+    return (user.email or "").lower() in _admin_emails()
 
 FREE_CONTACT_LIMIT    = 50
 FREE_MONTHLY_PATH_LIMIT = 5
@@ -28,15 +38,19 @@ FREE_AGENT_MSG_LIMIT  = 10
 PRO_AGENT_MSG_LIMIT   = 200   # Max plan = unlimited (no check)
 
 
-def is_pro(tenant: Tenant | None) -> bool:
-    """True for Pro or Max subscribers with an active subscription."""
+def is_pro(tenant: Tenant | None, user: User | None = None) -> bool:
+    """True for Pro or Max subscribers with an active subscription, or admin users."""
+    if is_admin_user(user):
+        return True
     if tenant is None:
         return False
     return tenant.plan in ("pro", "max", "team") and tenant.subscription_status in ("active",)
 
 
-def is_max(tenant: Tenant | None) -> bool:
-    """True only for Max (or legacy Team) subscribers."""
+def is_max(tenant: Tenant | None, user: User | None = None) -> bool:
+    """True only for Max (or legacy Team) subscribers, or admin users."""
+    if is_admin_user(user):
+        return True
     if tenant is None:
         return False
     return tenant.plan in ("max", "team") and tenant.subscription_status in ("active",)

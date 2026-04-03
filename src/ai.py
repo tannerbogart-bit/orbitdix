@@ -25,7 +25,7 @@ def draft_message():
     user_id = int(get_jwt_identity())
     user = db.session.get(User, user_id)
     tenant = db.session.get(Tenant, user.tenant_id) if user else None
-    if not is_pro(tenant):
+    if not is_pro(tenant, user):
         return upgrade_error("AI-drafted messages are a Pro feature. Upgrade to use Claude-powered intros.")
 
     try:

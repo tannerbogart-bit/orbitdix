@@ -23,7 +23,7 @@ def intro_path():
     # Plan enforcement
     user = db.session.get(User, user_id)
     tenant = db.session.get(Tenant, user.tenant_id) if user else None
-    if not is_pro(tenant):
+    if not is_pro(tenant, user):
         used = monthly_paths_used(user.tenant_id)
         if used >= FREE_MONTHLY_PATH_LIMIT:
             return upgrade_error(

@@ -1375,14 +1375,14 @@ def agent_chat():
     user = db.session.get(User, user_id)
     tenant = db.session.get(Tenant, user.tenant_id) if user else None
     from .plans import FREE_AGENT_MSG_LIMIT, PRO_AGENT_MSG_LIMIT, is_max, monthly_agent_messages_used
-    if not is_max(tenant):
+    if not is_max(tenant, user):
         used = monthly_agent_messages_used(user_id)
-        if not is_pro(tenant) and used >= FREE_AGENT_MSG_LIMIT:
+        if not is_pro(tenant, user) and used >= FREE_AGENT_MSG_LIMIT:
             return upgrade_error(
                 f"You've used your {FREE_AGENT_MSG_LIMIT} free AI messages this month. "
                 "Upgrade to Pro for 200 messages/month, or Max for unlimited."
             )
-        if is_pro(tenant) and used >= PRO_AGENT_MSG_LIMIT:
+        if is_pro(tenant, user) and used >= PRO_AGENT_MSG_LIMIT:
             return upgrade_error(
                 f"You've used your {PRO_AGENT_MSG_LIMIT} Pro AI messages this month. "
                 "Upgrade to Max for unlimited AI messages."
