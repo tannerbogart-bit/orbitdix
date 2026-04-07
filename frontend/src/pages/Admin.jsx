@@ -109,12 +109,14 @@ function UserRow({ user, onClick }) {
 }
 
 function UserDetail({ user, onClose, onDelete, onPlanChange }) {
-  const [deleting, setDeleting]   = useState(false)
-  const [detail,   setDetail]     = useState(null)
-  const [planEdit, setPlanEdit]   = useState(false)
-  const [newPlan,  setNewPlan]    = useState(user.plan)
-  const [newStatus, setNewStatus] = useState(user.subscription_status)
-  const [saving,   setSaving]     = useState(false)
+  const [deleting,   setDeleting]   = useState(false)
+  const [detail,     setDetail]     = useState(null)
+  const [planEdit,   setPlanEdit]   = useState(false)
+  const [newPlan,    setNewPlan]    = useState(user.plan)
+  const [newStatus,  setNewStatus]  = useState(user.subscription_status)
+  const [saving,     setSaving]     = useState(false)
+  const [resetLink,  setResetLink]  = useState(null)
+  const [resetting,  setResetting]  = useState(false)
 
   useEffect(() => {
     api.adminUser(user.id).then(setDetail).catch(() => {})
@@ -317,8 +319,48 @@ function UserDetail({ user, onClose, onDelete, onPlanChange }) {
           </div>
         )}
 
+        {/* Admin tools */}
+        <div className="card" style={{ padding: '14px', marginTop: '12px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Admin Tools</div>
+          <button
+            onClick={async () => {
+              setResetting(true)
+              try {
+                const data = await api.adminResetLink(user.id)
+                setResetLink(data.reset_link)
+              } catch (e) {
+                alert('Failed: ' + e.message)
+              } finally {
+                setResetting(false)
+              }
+            }}
+            disabled={resetting}
+            style={{ width: '100%', padding: '9px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600, cursor: resetting ? 'default' : 'pointer', marginBottom: '8px' }}
+          >
+            {resetting ? 'Generating…' : 'Generate password reset link'}
+          </button>
+          {resetLink && (
+            <div style={{ marginTop: '6px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Send this link to the user:</div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  readOnly
+                  value={resetLink}
+                  style={{ flex: 1, fontSize: '11px', padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--accent)', minWidth: 0 }}
+                />
+                <button
+                  onClick={() => { navigator.clipboard.writeText(resetLink) }}
+                  style={{ padding: '6px 10px', background: 'var(--accent)', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Danger zone */}
-        <div className="card" style={{ padding: '14px', marginTop: '12px', borderColor: 'var(--danger)' }}>
+        <div className="card" style={{ padding: '14px', marginTop: '8px', borderColor: 'var(--danger)' }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Danger Zone</div>
           <button
             onClick={handleDelete}

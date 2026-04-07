@@ -212,9 +212,8 @@ def forgot_password():
         reset_link = f"{frontend_url}/auth/reset-password?token={token}"
 
         sent = send_password_reset(email, reset_link)
-        if not sent:
-            # No email provider configured — log to server console only, never in response
-            print(f"[DEV] Password reset link: {reset_link}", flush=True)
+        # Always log the reset link server-side so admin can recover it from Railway logs
+        print(f"[PASSWORD RESET] {email} → {reset_link} (email_sent={sent})", flush=True)
 
     return jsonify(**resp)
 

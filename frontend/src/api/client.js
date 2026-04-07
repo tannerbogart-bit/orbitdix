@@ -142,6 +142,7 @@ export const api = {
   adminUsers:      ()             => req('GET',    '/admin/users'),
   adminUser:       (id)           => req('GET',    `/admin/users/${id}`),
   adminSetPlan:    (id, plan, status) => req('PATCH', `/admin/users/${id}/plan`, { plan, subscription_status: status }),
+  adminResetLink:  (id)           => req('POST',  `/admin/users/${id}/reset-link`),
   adminDeleteUser: (id)           => req('DELETE', `/admin/users/${id}`),
 
   // Billing

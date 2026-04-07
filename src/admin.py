@@ -273,6 +273,31 @@ def admin_user_detail(target_id):
     )
 
 
+# ── Generate password reset link ─────────────────────────────────────────────
+
+@bp.post("/api/admin/users/<int:target_id>/reset-link")
+@jwt_required()
+def admin_reset_link(target_id):
+    _, err = _require_admin()
+    if err:
+        return err
+
+    user = db.session.get(User, target_id)
+    if not user:
+        return jsonify(error="User not found"), 404
+
+    import os
+    from itsdangerous import URLSafeTimedSerializer
+    from flask import current_app
+    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+    token = s.dumps(user.email, salt="password-reset")
+    frontend_url = os.getenv("FRONTEND_URL", "https://orbitsix.ai")
+    reset_link = f"{frontend_url}/auth/reset-password?token={token}"
+
+    logger.info("Admin generated reset link for user %s (%s)", target_id, user.email)
+    return jsonify(reset_link=reset_link, email=user.email)
+
+
 # ── Manual plan override ──────────────────────────────────────────────────────
 
 VALID_PLANS    = {"free", "pro", "max"}
