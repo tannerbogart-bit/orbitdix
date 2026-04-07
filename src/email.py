@@ -52,15 +52,16 @@ def send_password_reset(to_email: str, reset_link: str) -> bool:
         from_email = os.getenv("FROM_EMAIL", "OrbitSix <noreply@orbitsix.com>")
         app_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
-        resend.Emails.send({
+        result = resend.Emails.send({
             "from": from_email,
             "to": [to_email],
             "subject": "Reset your OrbitSix password",
             "html": _reset_email_html(reset_link, app_url),
         })
+        print(f"[email] Reset email result: {result}", flush=True)
         return True
     except Exception as e:
-        print(f"[email] Failed to send reset email: {e}", flush=True)
+        print(f"[email] Failed to send reset email to {to_email}: {e}", flush=True)
         return False
 
 
