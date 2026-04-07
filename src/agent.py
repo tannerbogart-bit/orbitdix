@@ -1503,7 +1503,6 @@ def agent_chat():
                     system=system_prompt,
                     tools=TOOLS,
                     messages=messages_hist,
-                    thinking={"type": "enabled", "budget_tokens": 5000},
                 ) as stream:
                     turn_text = ""
                     for event in stream:
