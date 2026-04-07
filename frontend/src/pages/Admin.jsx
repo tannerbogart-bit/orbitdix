@@ -25,9 +25,9 @@ function StatCard({ label, value, sub }) {
 
 function PlanBadge({ plan, status }) {
   const colors = {
-    free:  { bg: 'var(--bg-input)',    color: 'var(--text-muted)',      border: 'var(--border)' },
-    pro:   { bg: 'var(--accent-dim)',  color: 'var(--accent)',           border: 'var(--accent)' },
-    max:   { bg: 'var(--success-dim)', color: 'var(--success)',          border: 'var(--success)' },
+    free:  { bg: 'var(--bg-input)',    color: 'var(--text-muted)',  border: 'var(--border)' },
+    pro:   { bg: 'var(--accent-dim)',  color: 'var(--accent)',      border: 'var(--accent)' },
+    max:   { bg: 'var(--success-dim)', color: 'var(--success)',     border: 'var(--success)' },
   }
   const c = colors[plan] || colors.free
   const isPastDue = status === 'past_due'
@@ -43,8 +43,22 @@ function PlanBadge({ plan, status }) {
   )
 }
 
+function SourceBadge({ source }) {
+  if (!source) return null
+  const label = source === 'oauth' ? 'LinkedIn OAuth' : source === 'chrome_extension' ? 'Extension' : source
+  return (
+    <span style={{
+      padding: '2px 7px', borderRadius: '99px', fontSize: '10px', fontWeight: 600,
+      background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)',
+    }}>
+      {label}
+    </span>
+  )
+}
+
 function UserRow({ user, onClick }) {
   const isActive = user.days_since_active !== null && user.days_since_active < 3
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ')
   return (
     <tr
       onClick={() => onClick(user)}
@@ -52,26 +66,35 @@ function UserRow({ user, onClick }) {
       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
-      <td style={{ padding: '12px 16px', maxWidth: '200px' }}>
-        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <td style={{ padding: '12px 16px', maxWidth: '220px' }}>
+        {fullName && (
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {fullName}
+          </div>
+        )}
+        <div style={{ fontSize: fullName ? '11px' : '13px', fontWeight: fullName ? 400 : 600, color: fullName ? 'var(--text-muted)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {user.email}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-          {timeAgo(user.created_at)}
-          {!user.email_verified && <span style={{ color: 'var(--warning)', marginLeft: '6px' }}>unverified</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{timeAgo(user.created_at)}</span>
+          {!user.email_verified && <span style={{ fontSize: '10px', color: 'var(--warning)' }}>unverified</span>}
+          {!user.onboarding_complete && <span style={{ fontSize: '10px', color: 'var(--text-muted)', opacity: 0.6 }}>onboarding</span>}
         </div>
       </td>
       <td style={{ padding: '12px 16px' }}>
-        <PlanBadge plan={user.plan} status={user.subscription_status} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <PlanBadge plan={user.plan} status={user.subscription_status} />
+          <SourceBadge source={user.signup_source} />
+        </div>
       </td>
       <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>
         {user.contacts.toLocaleString()}
       </td>
       <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>
-        {user.agent_messages}
+        {user.edges.toLocaleString()}
       </td>
       <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>
-        {user.saved_paths}
+        {user.agent_messages}
       </td>
       <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'right' }}>
         {user.outreach}
@@ -85,9 +108,13 @@ function UserRow({ user, onClick }) {
   )
 }
 
-function UserDetail({ user, onClose, onDelete }) {
-  const [deleting, setDeleting] = useState(false)
-  const [detail, setDetail] = useState(null)
+function UserDetail({ user, onClose, onDelete, onPlanChange }) {
+  const [deleting, setDeleting]   = useState(false)
+  const [detail,   setDetail]     = useState(null)
+  const [planEdit, setPlanEdit]   = useState(false)
+  const [newPlan,  setNewPlan]    = useState(user.plan)
+  const [newStatus, setNewStatus] = useState(user.subscription_status)
+  const [saving,   setSaving]     = useState(false)
 
   useEffect(() => {
     api.adminUser(user.id).then(setDetail).catch(() => {})
@@ -106,18 +133,39 @@ function UserDetail({ user, onClose, onDelete }) {
     }
   }
 
+  async function handlePlanSave() {
+    setSaving(true)
+    try {
+      await api.adminSetPlan(user.id, newPlan, newStatus)
+      onPlanChange(user.id, newPlan, newStatus)
+      setPlanEdit(false)
+    } catch (e) {
+      alert('Failed to update plan: ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const fullName = detail
+    ? [detail.user?.first_name, detail.user?.last_name].filter(Boolean).join(' ')
+    : [user.first_name, user.last_name].filter(Boolean).join(' ')
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
-      <div style={{ width: '420px', height: '100vh', background: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border)', overflowY: 'auto', padding: '24px' }}>
+      <div style={{ width: '440px', height: '100vh', background: 'var(--bg-sidebar)', borderLeft: '1px solid var(--border)', overflowY: 'auto', padding: '24px' }}>
+
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '16px' }}>User Detail</div>
+          <div>
+            {fullName && <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '16px' }}>{fullName}</div>}
+            <div style={{ fontSize: fullName ? '12px' : '16px', color: fullName ? 'var(--text-muted)' : 'var(--text-primary)', fontWeight: fullName ? 400 : 700, fontFamily: fullName ? 'inherit' : 'Syne, sans-serif' }}>{user.email}</div>
+          </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Identity */}
-        <div className="card" style={{ padding: '16px', marginBottom: '12px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>{user.email}</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+        <div className="card" style={{ padding: '14px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
             <PlanBadge plan={user.plan} status={user.subscription_status} />
             {user.email_verified
               ? <span className="badge badge-success">verified</span>
@@ -125,46 +173,116 @@ function UserDetail({ user, onClose, onDelete }) {
             {user.agreed_to_terms
               ? <span className="badge badge-success">ToS agreed</span>
               : <span className="badge badge-danger">no ToS</span>}
+            {user.onboarding_complete
+              ? <span className="badge badge-success">onboarded</span>
+              : <span className="badge badge-warning">not onboarded</span>}
+            <SourceBadge source={user.signup_source} />
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.8 }}>
             Signed up {timeAgo(user.created_at)}<br />
             {user.signup_ip && <>IP: {user.signup_ip}<br /></>}
             Last active: {user.last_active_at ? timeAgo(user.last_active_at) : 'never'}
           </div>
         </div>
 
+        {/* Plan override */}
+        <div className="card" style={{ padding: '14px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: planEdit ? '10px' : 0 }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Plan Override</div>
+            {!planEdit && (
+              <button onClick={() => setPlanEdit(true)} style={{ fontSize: '11px', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                Change plan
+              </button>
+            )}
+          </div>
+          {planEdit ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <select
+                value={newPlan}
+                onChange={e => setNewPlan(e.target.value)}
+                style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '13px' }}
+              >
+                <option value="free">Free</option>
+                <option value="pro">Pro</option>
+                <option value="max">Max</option>
+              </select>
+              <select
+                value={newStatus}
+                onChange={e => setNewStatus(e.target.value)}
+                style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '13px' }}
+              >
+                <option value="active">Active</option>
+                <option value="canceled">Canceled</option>
+                <option value="past_due">Past Due</option>
+              </select>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={handlePlanSave}
+                  disabled={saving}
+                  style={{ flex: 1, padding: '8px', background: 'var(--accent)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  onClick={() => { setPlanEdit(false); setNewPlan(user.plan); setNewStatus(user.subscription_status) }}
+                  style={{ padding: '8px 14px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              Current: <strong>{user.plan}</strong> · {user.subscription_status}
+            </div>
+          )}
+        </div>
+
         {/* Usage stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
           {[
-            { label: 'Contacts',       value: user.contacts },
-            { label: 'Agent messages', value: user.agent_messages },
-            { label: 'Saved paths',    value: user.saved_paths },
-            { label: 'Outreach',       value: user.outreach },
-            { label: 'Targets',        value: user.targets },
-            { label: 'Paths found',    value: user.paths_found },
+            { label: 'Contacts',  value: user.contacts },
+            { label: 'Edges',     value: user.edges },
+            { label: 'AI msgs',   value: user.agent_messages },
+            { label: 'Paths',     value: user.saved_paths },
+            { label: 'Outreach',  value: user.outreach },
+            { label: 'Targets',   value: user.targets },
           ].map(s => (
-            <div key={s.label} className="card" style={{ padding: '12px 14px' }}>
-              <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'Syne, sans-serif' }}>{s.value ?? 0}</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>{s.label}</div>
+            <div key={s.label} className="card" style={{ padding: '10px 12px' }}>
+              <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'Syne, sans-serif' }}>{s.value ?? 0}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>{s.label}</div>
             </div>
           ))}
         </div>
 
         {detail ? (
           <>
-            {/* Agent context */}
+            {/* Business context */}
             {detail.agent_context && (
               <div className="card" style={{ padding: '14px', marginBottom: '12px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Business Context</div>
                 {[
-                  ['Role',       detail.agent_context.my_role],
-                  ['Company',    detail.agent_context.my_company],
-                  ['Sells',      detail.agent_context.what_i_sell],
-                  ['ICP',        detail.agent_context.icp_description],
+                  ['Role',    detail.agent_context.my_role],
+                  ['Company', detail.agent_context.my_company],
+                  ['Sells',   detail.agent_context.what_i_sell],
+                  ['ICP',     detail.agent_context.icp_description],
                 ].filter(([, v]) => v).map(([label, val]) => (
                   <div key={label} style={{ marginBottom: '6px' }}>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{label}: </span>
                     <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recent AI conversations */}
+            {detail.recent_messages?.length > 0 && (
+              <div className="card" style={{ padding: '14px', marginBottom: '12px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Recent AI Conversations</div>
+                {detail.recent_messages.map((m, i) => (
+                  <div key={i} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: i < detail.recent_messages.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4, wordBreak: 'break-word' }}>"{m.content}"</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '3px' }}>{timeAgo(m.created_at)}</div>
                   </div>
                 ))}
               </div>
@@ -210,6 +328,7 @@ function UserDetail({ user, onClose, onDelete }) {
             {deleting ? 'Deleting…' : 'Delete user + all data'}
           </button>
         </div>
+
       </div>
     </div>
   )
@@ -217,12 +336,12 @@ function UserDetail({ user, onClose, onDelete }) {
 
 export default function Admin() {
   const navigate = useNavigate()
-  const [stats,   setStats]   = useState(null)
-  const [users,   setUsers]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
+  const [stats,    setStats]    = useState(null)
+  const [users,    setUsers]    = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(null)
   const [selected, setSelected] = useState(null)
-  const [search,  setSearch]  = useState('')
+  const [search,   setSearch]   = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -237,13 +356,21 @@ export default function Admin() {
     }).finally(() => setLoading(false))
   }, [])
 
+  function handlePlanChange(userId, plan, status) {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, plan, subscription_status: status } : u))
+    setSelected(prev => prev?.id === userId ? { ...prev, plan, subscription_status: status } : prev)
+  }
+
   const filtered = search.trim()
-    ? users.filter(u => u.email.toLowerCase().includes(search.toLowerCase()))
+    ? users.filter(u =>
+        u.email.toLowerCase().includes(search.toLowerCase()) ||
+        `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase())
+      )
     : users
 
   if (loading) {
     return (
-      <div className="page-pad" style={{ maxWidth: '1100px' }}>
+      <div className="page-pad" style={{ maxWidth: '1200px' }}>
         <div className="skeleton skeleton-title" style={{ width: '120px', marginBottom: '24px' }} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '28px' }}>
           {[...Array(4)].map((_, i) => <div key={i} className="skeleton skeleton-card" />)}
@@ -266,7 +393,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="page-pad" style={{ maxWidth: '1100px' }}>
+    <div className="page-pad" style={{ maxWidth: '1200px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: '26px', fontWeight: 700, margin: '0 0 4px' }}>Admin</h1>
@@ -282,10 +409,10 @@ export default function Admin() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '28px' }}>
           <StatCard label="Total users"    value={stats.total_users}          sub={`+${stats.new_this_week} this week`} />
           <StatCard label="Total contacts" value={stats.total_contacts?.toLocaleString()} />
-          <StatCard label="Agent messages" value={stats.total_agent_messages}  />
-          <StatCard label="Saved paths"    value={stats.total_paths}           />
-          <StatCard label="Outreach sent"  value={stats.total_outreach}        />
           <StatCard label="Connections"    value={stats.total_edges?.toLocaleString()} />
+          <StatCard label="Agent messages" value={stats.total_agent_messages} />
+          <StatCard label="Saved paths"    value={stats.total_paths} />
+          <StatCard label="Outreach"       value={stats.total_outreach} />
         </div>
       )}
 
@@ -306,7 +433,7 @@ export default function Admin() {
         <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <input
             className="input"
-            placeholder="Search by email…"
+            placeholder="Search by name or email…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ maxWidth: '280px', fontSize: '13px', padding: '7px 12px' }}
@@ -318,7 +445,7 @@ export default function Admin() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Email', 'Plan', 'Contacts', 'AI msgs', 'Paths', 'Outreach', 'Last active'].map((h, i) => (
+                {['User', 'Plan', 'Contacts', 'Edges', 'AI msgs', 'Outreach', 'Last active'].map((h, i) => (
                   <th key={h} style={{ padding: '10px 16px', textAlign: i > 1 ? 'right' : 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -343,6 +470,7 @@ export default function Admin() {
           user={selected}
           onClose={() => setSelected(null)}
           onDelete={id => setUsers(prev => prev.filter(u => u.id !== id))}
+          onPlanChange={handlePlanChange}
         />
       )}
     </div>

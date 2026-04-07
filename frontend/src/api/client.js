@@ -138,10 +138,11 @@ export const api = {
   deleteOutreach: (id)     => req('DELETE', `/outreach/${id}`),
 
   // Admin (gated server-side by ADMIN_EMAILS)
-  adminStats:      ()      => req('GET',    '/admin/stats'),
-  adminUsers:      ()      => req('GET',    '/admin/users'),
-  adminUser:       (id)    => req('GET',    `/admin/users/${id}`),
-  adminDeleteUser: (id)    => req('DELETE', `/admin/users/${id}`),
+  adminStats:      ()             => req('GET',    '/admin/stats'),
+  adminUsers:      ()             => req('GET',    '/admin/users'),
+  adminUser:       (id)           => req('GET',    `/admin/users/${id}`),
+  adminSetPlan:    (id, plan, status) => req('PATCH', `/admin/users/${id}/plan`, { plan, subscription_status: status }),
+  adminDeleteUser: (id)           => req('DELETE', `/admin/users/${id}`),
 
   // Billing
   getBillingPlan:  ()     => req('GET',  '/billing/plan'),
