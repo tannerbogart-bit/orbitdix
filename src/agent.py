@@ -362,9 +362,21 @@ def tool_find_path(target_name: str, user_id: int, tenant_id: int) -> dict:
                         )
                     path_nodes.append(node)
 
+                degrees = len(full_ids) - 1
+                # Flag direct connections — no intro needed
+                if degrees == 1:
+                    return {
+                        "already_connected": True,
+                        "degrees": 1,
+                        "path": path_nodes,
+                        "message": (
+                            f"{target.first_name} {target.last_name} is already a direct connection. "
+                            "You can reach out to them directly — no warm intro needed."
+                        ),
+                    }
                 return {
                     "path": path_nodes,
-                    "degrees": len(full_ids) - 1,
+                    "degrees": degrees,
                 }
             if neighbor not in visited:
                 visited.add(neighbor)
@@ -654,17 +666,42 @@ def tool_find_path_to_company(company_name: str, preferred_title: str, user_id: 
         if p:
             path_nodes.append(_person_dict(p))
 
-    return {
+    degrees = len(best_path) - 1
+
+    # Separate direct connections from those needing an intro
+    direct_contacts = [
+        {"name": f"{p.first_name or ''} {p.last_name or ''}".strip(), "title": p.title}
+        for p in candidates if p.id in direct_ids
+    ]
+    needs_intro = [
+        {"name": f"{p.first_name or ''} {p.last_name or ''}".strip(), "title": p.title}
+        for p in candidates if p.id not in direct_ids and p.id != best_target.id
+    ]
+
+    result = {
         "company": company_name,
         "target": _person_dict(best_target),
         "path": path_nodes,
-        "degrees": len(best_path) - 1,
+        "degrees": degrees,
         "people_at_company": len(candidates),
-        "other_contacts": [
-            {"name": f"{p.first_name or ''} {p.last_name or ''}".strip(), "title": p.title}
-            for p in candidates if p.id != best_target.id
-        ][:4],
+        "direct_connections": direct_contacts,
+        "needs_intro": needs_intro[:4],
     }
+
+    # If best path is a direct connection, flag it clearly
+    if degrees == 1:
+        result["already_connected"] = True
+        result["message"] = (
+            f"You are directly connected to {best_target.first_name} {best_target.last_name} at {company_name}. "
+            "No warm intro needed — you can reach out directly."
+        )
+        if needs_intro:
+            result["intro_note"] = (
+                f"There are {len(needs_intro)} other people at {company_name} you're NOT directly connected to "
+                "— those would benefit from a warm intro path."
+            )
+
+    return result
 
 
 def tool_list_people_at_company(company_name: str, tenant_id: int) -> dict:
@@ -953,6 +990,9 @@ def _build_system_prompt(user_id: int, tenant_id: int) -> str:
         "- Keep responses tight — a recommendation + a path + a draft offer beats a long explanation",
         "- If the network is small (< 50 contacts), acknowledge it: 'Your network is small right now — here's what we can still do AND what to do to grow it'",
         "- After drafting a message, always offer to save it: 'Want me to save this to your Outreach Tracker?'",
+        "- When find_path returns already_connected=True: tell the user they're directly connected and can message them directly — do NOT frame it as a path or suggest an intro",
+        "- When find_path_to_company returns already_connected=True: same — confirm they can reach out directly, then mention intro_note if present (other people at that company who DO need a warm intro)",
+        "- When find_path_to_company returns direct_connections: briefly note these as 'you can reach directly', focus the intro recommendation on needs_intro contacts",
         "- When find_path_to_company returns other_contacts, mention them so user knows who else is reachable there",
     ]
 
