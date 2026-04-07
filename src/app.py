@@ -52,8 +52,8 @@ def create_app():
     if not secret_key:
         raise RuntimeError("SECRET_KEY environment variable must be set in production")
     app.config["JWT_SECRET_KEY"] = jwt_secret
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"]  = timedelta(hours=24)
-    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"]  = timedelta(days=7)
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=90)
     # SECRET_KEY protects Flask session cookies (used for OAuth CSRF state)
     app.config["SECRET_KEY"] = secret_key
     app.config["SESSION_COOKIE_HTTPONLY"] = True
